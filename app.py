@@ -7,7 +7,7 @@ import cv2
 from rubiks_core import (
     validate_cube_state, solve_cube,
     classify_color_lab, classify_color_hsv, classify_color_knn, classify_color_mlp,
-    extract_center_bgr, compare_methods, COLORS,
+    extract_center_bgr, COLORS,
 )
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -130,49 +130,7 @@ html,body,[data-testid="stAppViewContainer"],[data-testid="stMain"]{
 [data-testid="stSidebar"] .stButton>button:hover{
     background:rgba(255,255,255,.22)!important;color:#fff!important;}
 
-/* ── Tables ── */
-.mtable{width:100%;border-collapse:collapse;font-size:13px;border-radius:12px;overflow:hidden;}
-.mtable th{background:linear-gradient(135deg,#6366f1,#7c3aed);color:#fff;
-    padding:11px 15px;text-align:left;font-weight:700;}
-.mtable td{padding:9px 15px;border-bottom:1px solid #f1f5f9;}
-.mtable tr:last-child td{border-bottom:none;}
-.mtable tr:hover td{background:#f5f3ff;}
-.bbest{background:#d1fae5;color:#065f46;padding:2px 9px;border-radius:99px;font-weight:700;}
-.bmid {background:#fef9c3;color:#78350f;padding:2px 9px;border-radius:99px;font-weight:600;}
-.blow {background:#fee2e2;color:#991b1b;padding:2px 9px;border-radius:99px;font-weight:600;}
-
-/* ── Bar chart ── */
-.brow{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
-.blabel{width:150px;font-size:12px;font-weight:600;color:#374151;flex-shrink:0;}
-.btrack{flex:1;background:#f1f5f9;border-radius:99px;height:21px;overflow:hidden;}
-.bfill{height:21px;border-radius:99px;display:flex;align-items:center;
-    padding-left:9px;font-size:11px;font-weight:700;color:#fff;min-width:44px;}
-.b1{background:linear-gradient(90deg,#6366f1,#818cf8);}
-.b2{background:linear-gradient(90deg,#f59e0b,#fbbf24);}
-.b3{background:linear-gradient(90deg,#10b981,#34d399);}
-
-/* ── Pipeline ── */
-.pipeline{display:flex;flex-wrap:wrap;gap:0;align-items:center;
-    background:linear-gradient(135deg,#f5f3ff,#ede9fe);
-    border:1px solid #c7d2fe;border-radius:14px;padding:16px 18px;}
-.pstep{background:linear-gradient(135deg,#6366f1,#7c3aed);color:#fff;
-    border-radius:9px;padding:7px 12px;font-weight:700;font-size:12px;
-    box-shadow:0 4px 12px rgba(99,102,241,.3);}
-.parrow{color:#6366f1;font-size:18px;margin:0 7px;font-weight:700;}
-
-/* ── Method cards ── */
-.mcard{background:#fff;border-radius:14px;padding:18px;border:1px solid #e5e7eb;
-    box-shadow:0 2px 12px rgba(0,0,0,.05);}
-.mcard-icon{font-size:1.8rem;margin-bottom:8px;}
-.mcard-title{font-size:.95rem;font-weight:800;color:#1e293b;margin-bottom:3px;}
-.mcard-type{font-size:10px;font-weight:700;color:#6366f1;letter-spacing:.8px;
-    text-transform:uppercase;margin-bottom:10px;}
-.mcard-body{font-size:12px;color:#64748b;line-height:1.6;}
-.mcard-foot{margin-top:12px;background:#f5f3ff;border-radius:8px;padding:7px 11px;
-    font-size:11px;font-weight:600;color:#4f46e5;}
-
 /* ── Misc ── */
-h1,h2,h3,h4{font-weight:800!important;}
 .stAlert{border-radius:12px!important;}
 [data-testid="stExpander"]{border-radius:12px!important;border:1px solid #e5e7eb!important;}
 .stTabs [data-baseweb="tab-list"]{background:#f8fafc;border-radius:10px;padding:4px;}
@@ -190,11 +148,6 @@ COLOR_EMOJIS  = {'White':'⬜','Red':'🟥','Green':'🟩','Yellow':'🟨','Oran
 CENTER_COLORS = {'Up':'White','Left':'Orange','Front':'Green',
                   'Right':'Red','Back':'Blue','Down':'Yellow'}
 CALIB_FILE    = "calibration_profile.json"
-IMAGE_LABEL_MAP = {
-    "green1.jpeg":"Green","green.jpeg":"Green","blue1.jpeg":"Blue","blue.jpeg":"Blue",
-    "red1.jpeg":"Red","red.jpeg":"Red","orange1.jpeg":"Orange","orange.jpeg":"Orange",
-    "white1.jpeg":"White","white.jpeg":"White","yellow1.jpeg":"Yellow","yellow.jpeg":"Yellow",
-}
 
 ALGO_INFO = {
     "A": {"label":"Method A — OpenCV Heuristic",  "short":"OpenCV CIE-LAB",
@@ -220,8 +173,6 @@ _DEFAULTS = {
     'custom_std_colors': {},
     'history':        None,
     'history_index':  0,
-    'cv_results':     None,
-    'cv_samples':     [],
     'scan_algo':      'A',          # selected algorithm key
     'preview':        None,         # dict: {face,method,img_rgb,det,issues,wrong_face}
     'confirmed_faces': [],          # list (JSON-safe) of faces user has confirmed
@@ -518,7 +469,7 @@ with st.sidebar:
     st.divider()
 
     app_mode = st.radio("**Navigation**",
-        ["🧩 Scan & Solve","📊 CV Methods Study","⚙️ Calibration"])
+        ["🧩 Scan & Solve","⚙️ Calibration"])
 
     st.divider()
 
@@ -572,8 +523,6 @@ with st.sidebar:
 titles = {
     "🧩 Scan & Solve":     ("🧩 Rubik's Cube AI Solver",
                              "Scan each face · Select algorithm · Solve in ≤20 moves"),
-    "📊 CV Methods Study": ("📊 Algorithm Comparison Study",
-                             "CIE-LAB  ·  HSV Thresholding  ·  KNN  ·  MLP"),
     "⚙️ Calibration":      ("⚙️ Colour Calibration Studio",
                              "Adapt the OpenCV engine to your lighting environment"),
 }
@@ -1080,135 +1029,6 @@ if app_mode == "🧩 Scan & Solve":
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# PAGE 2 — CV METHODS STUDY
-# ══════════════════════════════════════════════════════════════════════════════
-elif app_mode == "📊 CV Methods Study":
-    with st.expander("📚 Background Study & Literature Review", expanded=True):
-        c1, c2 = st.columns([3,2])
-        with c1:
-            st.markdown("""
-### Problem Statement
-Rubik's Cube colour detection is a **6-class colour classification** computer vision problem.
-Each of 54 stickers must be mapped to one of (White, Red, Green, Yellow, Orange, Blue)
-despite variation in camera white-balance, ambient lighting and sticker reflectance.
-
-### State-of-the-Art Methods
-| Method | Paradigm | Lighting Robust | Training Needed |
-|--------|----------|----------------|-----------------|
-| **HSV Thresholding** | Classical CV | ⚠️ Medium | None |
-| **CIE-LAB Distance** | Classical CV | ✅ High | None |
-| **KNN Classifier** | Machine Learning | ✅ High | Synthetic |
-| **MLP Neural Network** | Deep Learning | ✅ High | Synthetic |
-| **YOLOv8** | Object Detection | ✅✅ Very High | Large Dataset |
-| **CNN (ResNet/VGG)** | Deep Learning | ✅✅ Very High | Large Dataset |
-""")
-        with c2:
-            st.markdown("""
-### Dataset
-**12 calibration photos** labelled by colour prefix
-(`green1.jpeg`, `blue.jpeg`, …).
-
-### Validation Chain
-✅ 54 total stickers  
-✅ Each colour exactly 9×  
-✅ Fixed centre per face  
-✅ Kociemba physical check
-""")
-
-    # Pipeline
-    st.markdown('<div class="glass">', unsafe_allow_html=True)
-    st.markdown('<span class="slabel">🔬 Detection Pipeline</span>', unsafe_allow_html=True)
-    st.markdown("""<div class="pipeline">
-      <span class="pstep">📷 Input</span><span class="parrow">→</span>
-      <span class="pstep">✂️ Crop 70%</span><span class="parrow">→</span>
-      <span class="pstep">📐 300×300</span><span class="parrow">→</span>
-      <span class="pstep">🔲 3×3 Grid</span><span class="parrow">→</span>
-      <span class="pstep">💡 Centroid Snap</span><span class="parrow">→</span>
-      <span class="pstep">🧪 Median BGR</span><span class="parrow">→</span>
-      <span class="pstep">🌈 BGR→LAB</span><span class="parrow">→</span>
-      <span class="pstep">🎨 Classifier</span><span class="parrow">→</span>
-      <span class="pstep">✅ Label</span>
-    </div>""", unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # Method cards
-    st.markdown('<span class="slabel">🧠 Algorithm Descriptions</span>', unsafe_allow_html=True)
-    mc1,mc2,mc3 = st.columns(3)
-    with mc1:
-        st.markdown("""<div class="mcard">
-          <div class="mcard-icon">🔵</div>
-          <div class="mcard-title">CIE-LAB Weighted Distance</div>
-          <div class="mcard-type">Classical Computer Vision</div>
-          <div class="mcard-body">Converts pixel to perceptually-uniform CIE-LAB space.
-          Weighted Euclidean distance to 6 reference colours with weights
-          <code>L×0.1, a×2.4, b×2.4</code> suppresses brightness variation
-          and amplifies chromatic channels.</div>
-          <div class="mcard-foot">O(6) per pixel · No training · Lighting robust</div>
-        </div>""", unsafe_allow_html=True)
-    with mc2:
-        st.markdown("""<div class="mcard">
-          <div class="mcard-icon">🟡</div>
-          <div class="mcard-title">HSV Range Thresholding</div>
-          <div class="mcard-type">Classical Computer Vision</div>
-          <div class="mcard-body">Checks BGR pixel against hand-crafted Hue/Saturation/Value
-          boundaries for each colour. Red needs two ranges (wraps at H=180°).
-          White detected by low saturation + high value. Highly interpretable
-          but sensitive to non-standard lighting.</div>
-          <div class="mcard-foot">O(6) per pixel · No training · Lighting sensitive</div>
-        </div>""", unsafe_allow_html=True)
-    with mc3:
-        st.markdown("""<div class="mcard">
-          <div class="mcard-icon">🟢</div>
-          <div class="mcard-title">KNN Classifier (k=5)</div>
-          <div class="mcard-type">Machine Learning</div>
-          <div class="mcard-body">KNN (k=5) trained on 1 200 synthetic CIE-LAB samples.
-          At inference, the query LAB vector is compared to all training samples;
-          majority colour among 5 nearest Euclidean neighbours is returned.
-          Data-driven but O(n) inference.</div>
-          <div class="mcard-foot">O(n) per pixel · Synthetic training · k=5 Euclidean</div>
-        </div>""", unsafe_allow_html=True)
-
-    st.markdown("<div style='height:14px;'></div>", unsafe_allow_html=True)
-
-    # Benchmark
-    st.markdown('<div class="glass">', unsafe_allow_html=True)
-    st.markdown('<span class="slabel">📈 Live Benchmark (12 labelled test images)</span>',
-                unsafe_allow_html=True)
-    found = sum(1 for f in IMAGE_LABEL_MAP if os.path.exists(f))
-    br1, br2 = st.columns([2,3])
-    with br1:
-        if st.button("▶️ Run Benchmark", type="primary", use_container_width=True):
-            with st.spinner("Training KNN & running 3 classifiers on all test images…"):
-                try:
-                    samples = []
-                    for fname, lbl in IMAGE_LABEL_MAP.items():
-                        if os.path.exists(fname):
-                            with open(fname,"rb") as fh: raw=fh.read()
-                            bgr = extract_center_bgr(raw)
-                            if bgr is not None: samples.append((bgr,lbl))
-                    if len(samples) < 3:
-                        st.error("Not enough test images found.")
-                    else:
-                        st.session_state.cv_results = compare_methods(samples)
-                        st.session_state.cv_samples = samples
-                        st.rerun()
-                except Exception as e:
-                    st.error(f"Benchmark error: {e}")
-    with br2:
-        st.markdown(
-            f"<div style='background:#f5f3ff;border-radius:10px;padding:11px 15px;"
-            f"border:1px solid #c7d2fe;font-size:13px;'>"
-            f"🗂 <b style='color:#6366f1;'>{found}/{len(IMAGE_LABEL_MAP)}</b>"
-            f" test images auto-detected in project folder</div>", unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # Custom samples
-    with st.expander("➕ Add Custom Test Samples"):
-        extra_samples = []
-        uc = st.columns(6)
-        for i, cname in enumerate(HEX_COLORS):
-            uf = uc[i].file_uploader(f"{COLOR_EMOJIS[cname]} {cname}",
-                type=["jpg","png","jpeg"], key=f"ex_{cname}")
             if uf:
                 try:
                     bgr = extract_center_bgr(uf.read())
