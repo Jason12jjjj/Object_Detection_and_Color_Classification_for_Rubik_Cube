@@ -4,7 +4,12 @@ import streamlit as st
 import streamlit.components.v1 as components
 import numpy as np
 import cv2
-from rubiks_core import solve_cube
+from rubiks_core import (
+    validate_cube_state, solve_cube,
+    classify_color_lab, classify_color_hsv, classify_color_knn, classify_color_mlp,
+    extract_center_bgr, COLORS,
+)
+import yolo_detect
 
 # ══════════════════════════════════════════════════════════════════════════════
 # PAGE CONFIG
@@ -13,195 +18,591 @@ st.set_page_config(page_title="Rubik's AI Solver", page_icon="🧊",
                    layout="wide", initial_sidebar_state="expanded")
 
 # ══════════════════════════════════════════════════════════════════════════════
-# CSS & STYLE (Safe Area for Streamlit Menu)
+# CSS (MINIMALIST)
 # ══════════════════════════════════════════════════════════════════════════════
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+
+/* ── Global Studio Aesthetic ── */
 html,body,[data-testid="stAppViewContainer"],[data-testid="stMain"]{
     font-family:'Outfit',sans-serif!important;
     background: radial-gradient(circle at 0% 0%, #f8fafc 0%, #e2e8f0 100%)!important;
+    color:#1e293b!important;
 }
-[data-testid="stHeader"] { background-color: transparent !important; }
-[data-testid="stMainBlockContainer"]{ padding-top: 50px !important; }
-.app-title { font-size: 2.8rem; font-weight: 800; color: #0f172a; margin-bottom: 0.2rem; }
-.app-subtitle { font-size: 1.1rem; color: #64748b; margin-bottom: 2rem; }
+[data-testid="stMainBlockContainer"]{padding-top:40px!important;}
+
+/* ── Glassmorphic Cards ── */
 .mcard{
-    background: rgba(255, 255, 255, 0.75); backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.4); border-radius: 28px; padding: 32px;
-    box-shadow: 0 20px 40px -15px rgba(0,0,0,0.05);
+    background: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 28px;
+    padding: 32px;
+    margin-bottom: 24px;
+    box-shadow: 0 20px 40px -15px rgba(0,0,0,0.05), 0 5px 15px -5px rgba(0,0,0,0.02);
 }
-.stButton>button{ border-radius: 12px!important; font-weight: 800!important; transition: all 0.2s; }
-.stButton>button:hover{ transform: translateY(-2px); border-color: #6366f1!important; }
+.slabel{
+    font-size: 11px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase;
+    color: #64748b; margin-bottom: 14px; display: block; opacity: 0.9;
+}
+
+/* ── Premium Control Bar ── */
+.power-btn{
+    border-radius: 14px!important; font-weight: 700!important; 
+    border: 1px solid rgba(255,255,255,0.8)!important;
+    background: rgba(255,255,255,0.5)!important;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05)!important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1)!important;
+}
+
+/* ── Tactile Grid Stickers ── */
+.stButton>button{
+    border-radius: 12px!important; 
+    font-family: 'Outfit',sans-serif!important;
+    font-weight: 800!important;
+    background: #ffffff!important;
+    border: 1.5px solid #f1f5f9!important;
+    box-shadow: inset 0 -4px 6px rgba(0,0,0,0.03), 0 4px 10px -2px rgba(0,0,0,0.05)!important;
+    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)!important;
+}
+.stButton>button:hover{
+    transform: translateY(-2px) scale(1.03)!important;
+    box-shadow: 0 12px 20px -5px rgba(0,0,0,0.1)!important;
+    border-color: #6366f1!important;
+}
+.stButton>button:active{transform: scale(0.95)!important;}
+
+/* ── Action Footer ── */
+.action-row{display:flex; gap:12px; margin-top:24px; padding-top:24px; border-top:1px solid rgba(0,0,0,0.03);}
+
+/* ── Solution & Sidebar ── */
+.sol-box{
+    background: rgba(248, 250, 252, 0.8);
+    border-radius: 20px; padding: 24px;
+    font-family: 'Courier New', monospace; font-size: 16px; font-weight: 800;
+    box-shadow: inset 0 2px 8px rgba(0,0,0,0.04);
+}
+
+[data-testid="stSidebar"]{
+    background: rgba(255, 255, 255, 0.8)!important;
+    backdrop-filter: blur(10px);
+    border-right: 1px solid rgba(0,0,0,0.05)!important;
+}
+
+/* ── Live Cube Map ── */
+.cube-map-container {
+    background: rgba(255,255,255,0.85);
+    backdrop-filter: blur(12px);
+    border-radius: 20px;
+    padding: 20px;
+    border: 1px solid rgba(0,0,0,0.06);
+    box-shadow: 0 8px 24px -8px rgba(0,0,0,0.06);
+}
+.cube-map-title {
+    font-size: 11px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase;
+    color: #64748b; margin-bottom: 16px; text-align: center;
+}
+.face-mini {
+    display: inline-block; margin: 3px; vertical-align: top;
+}
+.face-mini-title {
+    font-size: 10px; font-weight: 700; text-align: center; color: #94a3b8;
+    margin-bottom: 4px; letter-spacing: 1px;
+}
+.face-mini-title.active { color: #6366f1; font-weight: 800; }
+.face-mini-title.confirmed { color: #22c55e; }
+.mini-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px;
+    border-radius: 8px; overflow: hidden; border: 2px solid transparent;
+    transition: border-color 0.3s;
+}
+.mini-grid.active-grid { border-color: #6366f1; box-shadow: 0 0 12px rgba(99,102,241,0.25); }
+.mini-grid.confirmed-grid { border-color: #22c55e; }
+.mini-cell {
+    width: 22px; height: 22px; border-radius: 3px;
+    transition: transform 0.2s;
+}
+
+/* ── Detection Feedback ── */
+.detection-card {
+    background: rgba(255,255,255,0.9);
+    border-radius: 16px;
+    padding: 16px;
+    border: 1px solid rgba(0,0,0,0.06);
+    margin-top: 12px;
+}
+.det-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px;
+    max-width: 180px; margin: 0 auto;
+}
+.det-cell {
+    width: 52px; height: 52px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 800; color: rgba(0,0,0,0.5);
+    border: 2px solid rgba(255,255,255,0.6);
+    box-shadow: inset 0 -2px 4px rgba(0,0,0,0.1);
+}
+.pixel-strip {
+    display: flex; gap: 2px; justify-content: center; margin-top: 8px;
+}
+.px-swatch {
+    width: 16px; height: 16px; border-radius: 4px;
+    border: 1px solid rgba(0,0,0,0.1);
+}
 </style>
 """, unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
-# CONSTANTS & SESSION STATE
+# CONSTANTS
 # ══════════════════════════════════════════════════════════════════════════════
-FACES = ['Up','Left','Front','Right','Back','Down']
-HEX_COLORS = {'White':'#f1f5f9','Red':'#ef4444','Green':'#22c55e', 'Yellow':'#eab308','Orange':'#f97316','Blue':'#3b82f6'}
-COLOR_EMOJIS = {'White':'⬜','Red':'🟥','Green':'🟩','Yellow':'🟨','Orange':'🟧','Blue':'🟦'}
-CENTER_COLORS = {'Up':'White','Left':'Orange','Front':'Green', 'Right':'Red','Back':'Blue','Down':'Yellow'}
-CALIB_FILE = "calibration_profile.json"
+FACES         = ['Up','Left','Front','Right','Back','Down']
+HEX_COLORS    = {'White':'#f1f5f9','Red':'#ef4444','Green':'#22c55e',
+                  'Yellow':'#eab308','Orange':'#f97316','Blue':'#3b82f6'}
+COLOR_EMOJIS  = {'White':'⬜','Red':'🟥','Green':'🟩','Yellow':'🟨','Orange':'🟧','Blue':'🟦'}
+CENTER_COLORS = {'Up':'White','Left':'Orange','Front':'Green',
+                  'Right':'Red','Back':'Blue','Down':'Yellow'}
+CALIB_FILE    = "calibration_profile.json"
 
+# ══════════════════════════════════════════════════════════════════════════════
+# SESSION STATE
+# ══════════════════════════════════════════════════════════════════════════════
 _DEFAULTS = {
-    'active_face': 'Front',
-    'cube_state': {f: (['White']*4+[CENTER_COLORS[f]]+['White']*4) for f in FACES},
-    'last_solution': None,
+    'active_face':    'Front',
+    'cube_state':     {f: (['White']*4+[CENTER_COLORS[f]]+['White']*4) for f in FACES},
+    'last_solution':  None,
+    'selected_color': 'White',
+    'solve_speed':    1.0,
     'custom_std_colors': {},
-    'history': None,
-    'history_index': 0,
+    'history':        None,
+    'history_index':  0,
     'confirmed_faces': [],
-    'scan_result': None,
+    'scan_result':    None,   # stores last scan feedback
 }
 
+if 'custom_std_colors' not in st.session_state and os.path.exists(CALIB_FILE):
+    try:
+        with open(CALIB_FILE) as fh:
+            _DEFAULTS['custom_std_colors'] = json.load(fh)
+    except Exception: pass
+
 for k, v in _DEFAULTS.items():
-    if k not in st.session_state: st.session_state[k] = v
+    if k not in st.session_state:
+        st.session_state[k] = v
 
 if st.session_state.history is None:
-    st.session_state.history = [json.dumps({"cube_state": st.session_state.cube_state, "confirmed_faces": st.session_state.confirmed_faces})]
+    st.session_state.history = [json.dumps({
+        "cube_state": st.session_state.cube_state,
+        "confirmed_faces": st.session_state.confirmed_faces
+    })]
 
 def push_history():
-    sj = json.dumps({"cube_state": st.session_state.cube_state, "confirmed_faces": st.session_state.confirmed_faces})
+    sj = json.dumps({
+        "cube_state": st.session_state.cube_state,
+        "confirmed_faces": st.session_state.confirmed_faces
+    })
+    if st.session_state.history_index < len(st.session_state.history)-1:
+        st.session_state.history = st.session_state.history[:st.session_state.history_index+1]
     st.session_state.history.append(sj)
-    st.session_state.history_index = len(st.session_state.history) - 1
+    st.session_state.history_index = len(st.session_state.history)-1
 
 # ══════════════════════════════════════════════════════════════════════════════
-# HELPERS & VISION ENGINES
+# HELPERS
 # ══════════════════════════════════════════════════════════════════════════════
 def get_std_colors():
-    d = {'White':(0,30,220),'Yellow':(30,160,200),'Orange':(12,200,240), 'Red':(0,210,180),'Green':(60,180,150),'Blue':(110,180,160)}
+    d = {'White':(0,30,220),'Yellow':(30,160,200),'Orange':(12,200,240),
+         'Red':(0,210,180),'Green':(60,180,150),'Blue':(110,180,160)}
     for k, v in st.session_state.custom_std_colors.items(): d[k] = tuple(v)
     return d
 
-def classify_color_lab(bgr_pixel, std_colors):
-    pixel_mat = np.uint8([[bgr_pixel]])
-    lab_pixel = cv2.cvtColor(pixel_mat, cv2.COLOR_BGR2LAB)[0][0]
-    min_dist = float('inf'); best_color = 'White'
-    for color_name, hsv_val in std_colors.items():
-        std_bgr = cv2.cvtColor(np.uint8([[[hsv_val[0], hsv_val[1], hsv_val[2]]]]), cv2.COLOR_HSV2BGR)
-        std_lab = cv2.cvtColor(std_bgr, cv2.COLOR_BGR2LAB)[0][0]
-        dist = np.linalg.norm(lab_pixel.astype(float) - std_lab.astype(float))
-        if dist < min_dist:
-            min_dist = dist; best_color = color_name
-    return best_color
+def hex_to_bgr(h):
+    h = h.lstrip('#')
+    return (int(h[4:6],16), int(h[2:4],16), int(h[0:2],16))
+
+def face_complete(f): return f in st.session_state.get('confirmed_faces', [])
+
+def mark_confirmed(face):
+    cf = st.session_state.confirmed_faces
+    if face not in cf: cf.append(face)
+
+def unmark_confirmed(face):
+    cf = st.session_state.confirmed_faces
+    if face in cf: cf.remove(face)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# DETECTION  (returns detected colors + raw BGR pixels + annotated image)
+# ══════════════════════════════════════════════════════════════════════════════
+def _warp_to_300(img_bgr):
+    h, w = img_bgr.shape[:2]
+    gs = int(min(h,w)*0.7); ox, oy = (w-gs)//2, (h-gs)//2
+    return cv2.resize(img_bgr[oy:oy+gs, ox:ox+gs], (300,300))
 
 def _grid_colors_with_pixels(warped, std_colors, classifier_fn):
-    detected = ['White']*9; raw_bgrs = [np.zeros(3, dtype=np.uint8)]*9
+    """Returns (detected_colors[9], raw_bgr_pixels[9])"""
+    detected = ['White']*9
+    raw_bgrs = [np.zeros(3, dtype=np.uint8)]*9
+    hsv_w = cv2.cvtColor(warped, cv2.COLOR_BGR2HSV); sat_w = hsv_w[:,:,1]
     for r in range(3):
         for c in range(3):
             tx, ty = int((c+.5)*100), int((r+.5)*100)
-            roi = warped[max(0,ty-10):min(300,ty+10), max(0,tx-10):min(300,tx+10)]
-            if roi.size > 0: bgr = np.median(roi, axis=(0,1)).astype(np.uint8)
+            y1,y2 = max(0,ty-35), min(300,ty+35); x1,x2 = max(0,tx-35), min(300,tx+35)
+            moms = cv2.moments(sat_w[y1:y2,x1:x2])
+            fx, fy = tx, ty
+            if moms["m00"] > 50:
+                sl = x1+int(moms["m10"]/moms["m00"]); sm = y1+int(moms["m01"]/moms["m00"])
+                if np.sqrt((sl-tx)**2+(sm-ty)**2) < 30: fx, fy = sl, sm
+            roi = warped[max(0,fy-8):min(300,fy+8), max(0,fx-8):min(300,fx+8)]
+            if roi.size > 0:
+                rh, rw = roi.shape[:2]; c_ = roi[rh//4:rh-rh//4, rw//4:rw-rw//4]
+                bgr = np.median(c_, axis=(0,1)).astype(np.uint8)
             else: bgr = np.zeros(3, dtype=np.uint8)
             detected[r*3+c] = classifier_fn(bgr)
             raw_bgrs[r*3+c] = bgr
     return detected, raw_bgrs
 
-def run_method_a(raw_bytes):
-    # Method A: Standard OpenCV
-    arr = np.frombuffer(raw_bytes, dtype=np.uint8); img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
-    h, w = img.shape[:2]; gs = int(min(h,w)*0.7); ox, oy = (w-gs)//2, (h-gs)//2
-    warped = cv2.resize(img[oy:oy+gs, ox:ox+gs], (300, 300))
-    std = get_std_colors()
-    det, raw_bgrs = _grid_colors_with_pixels(warped, std, lambda b: classify_color_lab(b, std))
-    return det, raw_bgrs, cv2.cvtColor(warped, cv2.COLOR_BGR2RGB), None
+def _draw_grid_overlay(warped_rgb):
+    """Draw a 3x3 grid overlay on the warped image for visual feedback."""
+    vis = warped_rgb.copy()
+    h, w = vis.shape[:2]
+    # Grid lines
+    for i in range(1, 3):
+        cv2.line(vis, (i*w//3, 0), (i*w//3, h), (100, 100, 255), 2)
+        cv2.line(vis, (0, i*h//3), (w, i*h//3), (100, 100, 255), 2)
+    # Border
+    cv2.rectangle(vis, (1,1), (w-2,h-2), (100, 100, 255), 3)
+    # Center dots
+    for r in range(3):
+        for c in range(3):
+            cx = int((c+0.5)*w/3)
+            cy = int((r+0.5)*h/3)
+            cv2.circle(vis, (cx, cy), 6, (255, 255, 255), -1)
+            cv2.circle(vis, (cx, cy), 6, (100, 100, 255), 2)
+    return vis
 
-def run_method_b(raw_bytes):
-    # Method B: YOLOv8 Integration
+def run_method_a(raw_bytes, expected_center):
+    arr = np.frombuffer(raw_bytes, dtype=np.uint8); img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+    if img is None: return None, None, None, "❌ Cannot decode image."
+    std = get_std_colors(); warped = _warp_to_300(img)
+    det, raw_bgrs = _grid_colors_with_pixels(warped, std, lambda b: classify_color_lab(b, std))
+    warped_rgb = cv2.cvtColor(warped, cv2.COLOR_BGR2RGB)
+    overlay = _draw_grid_overlay(warped_rgb)
+    return det, raw_bgrs, overlay, None
+
+def run_method_b(raw_bytes, expected_center):
+    """YOLOv8 Detection Method"""
     try:
-        import yolo_detect
-        # Ensure best.pt is in the same directory
-        model_path = os.path.join(os.path.dirname(__file__), "best.pt")
-        result = yolo_detect.get_cube_bbox(raw_bytes, model_path=model_path, draw=True)
-        if result:
-            cropped_300 = cv2.resize(result["cropped"], (300, 300))
-            std = get_std_colors()
-            det, raw_bgrs = _grid_colors_with_pixels(cropped_300, std, lambda b: classify_color_lab(b, std))
-            return det, raw_bgrs, cv2.cvtColor(result["annotated"], cv2.COLOR_BGR2RGB), None
-        return None, None, None, "❌ YOLO failed to detect a cube face."
-    except ImportError:
-        return None, None, None, "❌ yolo_detect.py not found."
+        # 1. Detect stickers via YOLO
+        stickers = yolo_detect.detect_stickers(raw_bytes)
+        
+        if not stickers:
+            return None, None, None, "❌ No stickers detected via YOLO. Please ensure the cube face is well-lit and centered."
+        
+        # 2. Extract detected colors and pixels
+        # yolo_detect returns 9 stickers sorted as grid.
+        # If less than 9, we fall back to OpenCV for the rest (or show warning)
+        if len(stickers) < 9:
+            return None, None, None, f"⚠️ YOLO only detected {len(stickers)}/9 stickers. Try again or use OpenCV."
+
+        det = [s["color"] if s["color"] else "White" for s in stickers]
+        raw_bgrs = [np.median(s["cropped"], axis=(0, 1)).astype(np.uint8) for s in stickers]
+        
+        # 3. Get annotated image (showing bounding boxes)
+        annotated_bgr, _ = yolo_detect.detect_and_draw(raw_bytes)
+        overlay = cv2.cvtColor(annotated_bgr, cv2.COLOR_BGR2RGB)
+        
+        return det, raw_bgrs, overlay, None
+        
     except Exception as e:
-        return None, None, None, f"❌ YOLO Error: {str(e)}"
+        return None, None, None, f"⚠️ YOLO Error: {str(e)}"
+
+def run_method_c(raw_bytes, expected_center):
+    arr = np.frombuffer(raw_bytes, dtype=np.uint8); img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+    if img is None: return None, None, None, "❌ Cannot decode image."
+    std = get_std_colors(); warped = _warp_to_300(img)
+    det, raw_bgrs = _grid_colors_with_pixels(warped, std, lambda b: classify_color_mlp(b))
+    warped_rgb = cv2.cvtColor(warped, cv2.COLOR_BGR2RGB)
+    overlay = _draw_grid_overlay(warped_rgb)
+    return det, raw_bgrs, overlay, None
 
 # ══════════════════════════════════════════════════════════════════════════════
-# UI RENDERERS
+# LIVE CUBE MAP (renders all 6 faces as mini grids via components.html)
 # ══════════════════════════════════════════════════════════════════════════════
 def render_live_cube_map(active_face):
-    cube = st.session_state.cube_state; confirmed = st.session_state.confirmed_faces
-    def face_html(f):
-        is_act = (f == active_face); is_conf = (f in confirmed)
-        t_col = "#6366f1" if is_act else ("#22c55e" if is_conf else "#94a3b8")
-        cells = "".join([f'<div style="width:20px;height:20px;background:{HEX_COLORS[cube[f][i]]};border-radius:2px;"></div>' for i in range(9)])
-        return f'<div style="display:flex;flex-direction:column;align-items:center;"><div style="font-size:9px;color:{t_col};font-weight:700;">{f}</div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:2px;border:1px solid #ddd;padding:2px;border-radius:4px;">{cells}</div></div>'
+    """Render an HTML cross-layout cube map showing all 6 faces using components.html."""
+    cube = st.session_state.cube_state
+    confirmed = st.session_state.confirmed_faces
+
+    def face_html(face_name):
+        is_active = (face_name == active_face)
+        is_confirmed = (face_name in confirmed)
+        title_color = "#6366f1" if is_active else ("#22c55e" if is_confirmed else "#94a3b8")
+        title_weight = "800" if is_active else "700"
+        border_color = "#6366f1" if is_active else ("#22c55e" if is_confirmed else "transparent")
+        shadow = "0 0 12px rgba(99,102,241,0.3)" if is_active else ("0 0 8px rgba(34,197,94,0.2)" if is_confirmed else "none")
+        status_icon = "✏️" if is_active else ("✅" if is_confirmed else "⭕")
+        
+        cells = ""
+        for idx in range(9):
+            color = cube[face_name][idx]
+            hex_c = HEX_COLORS.get(color, '#f1f5f9')
+            cells += f'<div style="width:22px;height:22px;border-radius:3px;background:{hex_c};"></div>'
+        
+        return f'''<div style="display:inline-block;margin:3px;vertical-align:top;">
+            <div style="font-size:10px;font-weight:{title_weight};text-align:center;color:{title_color};margin-bottom:4px;letter-spacing:1px;font-family:Outfit,sans-serif;">{status_icon} {face_name}</div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:2px;border-radius:8px;overflow:hidden;border:2px solid {border_color};box-shadow:{shadow};padding:2px;">{cells}</div>
+        </div>'''
     
-    html = f'''<div style="display:grid;grid-template-columns:repeat(4,70px);gap:10px;justify-content:center;width:max-content;margin:0 auto;font-family:sans-serif;">
-        <div style="grid-column:2;">{face_html('Up')}</div>
-        <div style="grid-row:2;">{face_html('Left')}</div><div style="grid-row:2;">{face_html('Front')}</div><div style="grid-row:2;">{face_html('Right')}</div><div style="grid-row:2;">{face_html('Back')}</div>
-        <div style="grid-column:2;grid-row:3;">{face_html('Down')}</div>
-    </div>'''
-    components.html(html, height=300)
+    html = f'''
+    <html><body style="margin:0;padding:0;background:transparent;font-family:Outfit,sans-serif;">
+    <div style="background:rgba(255,255,255,0.9);border-radius:20px;padding:20px;border:1px solid rgba(0,0,0,0.06);box-shadow:0 8px 24px -8px rgba(0,0,0,0.06);">
+        <div style="font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#64748b;margin-bottom:16px;text-align:center;">🗺️ LIVE CUBE MAP</div>
+        <div style="text-align:center;">
+            <div style="margin-left:78px;margin-bottom:2px;">
+                {face_html('Up')}
+            </div>
+            <div>
+                {face_html('Left')}{face_html('Front')}{face_html('Right')}{face_html('Back')}
+            </div>
+            <div style="margin-left:78px;margin-top:2px;">
+                {face_html('Down')}
+            </div>
+        </div>
+        <div style="text-align:center;margin-top:14px;font-size:10px;color:#94a3b8;letter-spacing:1px;font-family:Outfit,sans-serif;">
+            ✅ {len(confirmed)}/6 FACES CONFIRMED
+        </div>
+    </div>
+    </body></html>'''
+    
+    components.html(html, height=400)
+
 
 # ══════════════════════════════════════════════════════════════════════════════
-# MAIN APP FLOW
+# DETECTION FEEDBACK PANEL
+# ══════════════════════════════════════════════════════════════════════════════
+def render_detection_feedback(scan_result):
+    """Show detailed visual feedback of what was detected."""
+    if scan_result is None:
+        return
+    
+    det_colors = scan_result.get('detected', [])
+    raw_bgrs = scan_result.get('raw_bgrs', [])
+    overlay_img = scan_result.get('overlay', None)
+    engine = scan_result.get('engine', 'OpenCV')
+    face = scan_result.get('face', 'Front')
+    
+    st.markdown(f"##### 🔍 Detection Result — {face}")
+    
+    # Show the warped image with grid overlay
+    if overlay_img is not None:
+        st.image(overlay_img, caption=f"📐 How {engine} cropped & analyzed your photo", use_container_width=True)
+    
+    st.markdown("---")
+    
+    # Build detected color grid HTML with inline styles
+    grid_style = "display:grid;grid-template-columns:repeat(3,1fr);gap:4px;max-width:180px;margin:0 auto;"
+    cell_style_base = "width:52px;height:52px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;border:2px solid rgba(255,255,255,0.6);box-shadow:inset 0 -2px 4px rgba(0,0,0,0.1);"
+    
+    cells_html = ""
+    for idx in range(9):
+        if idx < len(det_colors):
+            color = det_colors[idx]
+            hex_c = HEX_COLORS.get(color, '#f1f5f9')
+            text_color = "#333" if color in ['White','Yellow'] else "rgba(255,255,255,0.9)"
+            label = color[:3]
+            cells_html += f'<div style="{cell_style_base}background:{hex_c};color:{text_color};">{label}</div>'
+    
+    pixel_html = ""
+    for idx in range(9):
+        if idx < len(raw_bgrs):
+            bgr = raw_bgrs[idx]
+            r, g, b = int(bgr[2]), int(bgr[1]), int(bgr[0])
+            pixel_html += f'<div style="{cell_style_base}background:rgb({r},{g},{b});font-size:8px;color:rgba(255,255,255,0.85);">R{r}<br>G{g}<br>B{b}</div>'
+    
+    col_det, col_raw = st.columns(2)
+    with col_det:
+        st.markdown("**AI Classification:**")
+        st.markdown(f'<div style="{grid_style}">{cells_html}</div>', unsafe_allow_html=True)
+    with col_raw:
+        st.markdown("**Raw Pixel Colors:**")
+        st.markdown(f'<div style="{grid_style}">{pixel_html}</div>', unsafe_allow_html=True)
+    
+    st.markdown("")
+    # Quick summary
+    color_counts = Counter(det_colors)
+    summary_parts = []
+    for c in ['White','Red','Green','Yellow','Orange','Blue']:
+        cnt = color_counts.get(c, 0)
+        if cnt > 0:
+            summary_parts.append(f"{COLOR_EMOJIS[c]} {c}×{cnt}")
+    st.caption("Detected: " + "  ".join(summary_parts))
+
+# ══════════════════════════════════════════════════════════════════════════════
+# 3D PLAYER
+# ══════════════════════════════════════════════════════════════════════════════
+def render_3d_player(solution):
+    def inv(s):
+        r=[]
+        for m in reversed(s.split()):
+            if "'" in m: r.append(m.replace("'",""))
+            elif "2" in m: r.append(m)
+            else: r.append(m+"'")
+        return " ".join(r)
+    speed = st.session_state.get('solve_speed',1.0)
+    html = f"""
+    <div style="background:#f8fafc; border-radius:18px; padding:14px; border:1px solid #e2e8f0;">
+      <script type="module" src="https://cdn.cubing.net/js/cubing/twisty"></script>
+      <twisty-player experimental-setup-alg="{inv(solution)}" alg="{solution}"
+        background="none" tempo-scale="{speed}" control-panel="bottom-row"
+        style="width:100%; height:380px;"></twisty-player>
+    </div>"""
+    components.html(html, height=430)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SIDEBAR
 # ══════════════════════════════════════════════════════════════════════════════
 with st.sidebar:
-    st.markdown("## 🧊 Console")
-    # 🌟 修正點：確保 app_mode 在任何情況下都會被定義
-    app_mode = st.radio("App Mode", ["🧩 Scan & Solve", "⚙️ Calibration"], label_visibility="collapsed")
+    st.markdown("<h2 style='margin-top:0;'>🧊 Solver</h2>", unsafe_allow_html=True)
+    app_mode = st.radio("Mode", ["🧩 Scan & Solve", "⚙️ Calibration"], label_visibility="collapsed")
     st.divider()
-    if st.button("🗑️ Reset Cube", use_container_width=True):
-        st.session_state.cube_state = {f:(['White']*4+[CENTER_COLORS[f]]+['White']*4) for f in FACES}
-        st.session_state.confirmed_faces = []; st.session_state.last_solution = None
-        st.rerun()
+    if app_mode == "🧩 Scan & Solve":
+        with st.expander("📊 Sticker Stats"):
+            all_s = [s for f in FACES for s in st.session_state.cube_state[f]]
+            for name in HEX_COLORS:
+                cnt = all_s.count(name); ok = (cnt==9)
+                st.markdown(f"<div style='font-size:11px;'>{COLOR_EMOJIS[name]} {name}: <b>{cnt}/9</b></div>", unsafe_allow_html=True)
+        if st.button("🗑️ Reset Cube", use_container_width=True):
+            st.session_state.cube_state = {f:(['White']*4+[CENTER_COLORS[f]]+['White']*4)for f in FACES}
+            st.session_state.confirmed_faces = []; st.session_state.last_solution = None
+            st.session_state.scan_result = None
+            push_history(); st.rerun()
 
-st.markdown('<div class="app-title">🧊 AI Rubik\'s Vision Engine</div>', unsafe_allow_html=True)
-st.markdown('<div class="app-subtitle">Multi-Algorithm Comparison & Topology Validation</div>', unsafe_allow_html=True)
+# ── Title is now moved to sidebar for a cleaner studio layout ──
 
+# ══════════════════════════════════════════════════════════════════════════════
+# SCAN & SOLVE PAGE
+# ══════════════════════════════════════════════════════════════════════════════
 if app_mode == "🧩 Scan & Solve":
     curr = st.session_state.active_face
-    
-    # Navigation
-    nav_cols = st.columns(6)
+    # ── One-Line Navigation & Palette ───────────────────────────────────────
+    pw_cols = st.columns(6)
     for i, f in enumerate(FACES):
-        if nav_cols[i].button(f"{COLOR_EMOJIS[CENTER_COLORS[f]]} {f}", type="primary" if f==curr else "secondary", use_container_width=True):
-            st.session_state.active_face = f; st.session_state.scan_result = None; st.rerun()
+        cc = CENTER_COLORS[f]
+        is_act = (f == curr)
+        is_conf = face_complete(f)
+        lbl = f"{COLOR_EMOJIS[cc]} {f}"
+        if is_conf and not is_act:
+            lbl = f"✅ {f}"
+        btn_type = "primary" if is_act else "secondary"
+        if pw_cols[i].button(lbl, key=f"pwr_{f}", use_container_width=True, type=btn_type):
+            st.session_state.active_face = f
+            st.session_state.selected_color = cc
+            st.session_state.scan_result = None
+            st.rerun()
 
+    st.markdown("<div style='height:10px;'></div>", unsafe_allow_html=True)
+
+    # ── Main 3-Column Layout: Upload | Grid | Live Map ──────────────────────
     col_l, col_r, col_map = st.columns([3, 2, 2], gap="large")
-
+    
     with col_l:
         st.markdown("#### 📂 Photo Assist")
-        up = st.file_uploader("Upload Face Photo", type=['jpg','png','jpeg'], label_visibility="collapsed")
-        algo = st.selectbox("Vision Engine", ["OpenCV (Rule-based)", "YOLOv8 (Object Detection)"])
+        up = st.file_uploader("Upload reference", type=['jpg','png','jpeg'], key=f"up_{curr}", label_visibility="collapsed")
         
         if up:
-            raw = up.getvalue()
-            scan_key = f"scanned_{curr}_{algo}"
-            if scan_key not in st.session_state or st.session_state[scan_key] != raw:
-                with st.spinner("Analyzing..."):
-                    det, raw_bgrs, overlay, err = run_method_a(raw) if "OpenCV" in algo else run_method_b(raw)
-                    if not err:
-                        det[4] = CENTER_COLORS[curr] # Force center
-                        st.session_state.cube_state[curr] = det
-                        st.session_state.scan_result = {"overlay": overlay, "face": curr}
-                        st.session_state[scan_key] = raw
-                        if curr not in st.session_state.confirmed_faces: st.session_state.confirmed_faces.append(curr)
-                        push_history(); st.rerun()
-                    else: st.error(err)
+            raw = up.read()
+            # 1. Show the uploaded original photo
+            st.image(raw, caption="📷 Your uploaded photo", use_container_width=True)
             
-            if st.session_state.scan_result:
-                st.image(st.session_state.scan_result["overlay"], caption=f"Analyzed via {algo}", use_container_width=True)
+            st.divider()
+            
+            # 2. Vision Engine selector (clean dropdown)
+            st.markdown("##### 🔬 Vision Engine")
+            algo_choice = st.selectbox(
+                "Select AI Model:",
+                ["📐 OpenCV (Math Distance)", "🎯 YOLOv8 (Object Detection)", "🧠 SVM (Machine Learning)"],
+                label_visibility="collapsed",
+                key=f"algo_sel_{curr}"
+            )
 
+            # 3. Dynamic button label follows selected engine
+            engine_name = algo_choice.split(" ")[1]  # Extract OpenCV, YOLOv8, or SVM
+            if st.button(f"📸 Scan with {engine_name}", type="primary", use_container_width=True):
+                
+                with st.spinner(f"Analyzing via {engine_name}..."):
+                    
+                    det, raw_bgrs, overlay, err = None, None, None, None
+                    
+                    # 4. Algorithm routing
+                    if "OpenCV" in algo_choice:
+                        det, raw_bgrs, overlay, err = run_method_a(raw, CENTER_COLORS[curr])
+                        
+                    elif "YOLOv8" in algo_choice:
+                        det, raw_bgrs, overlay, err = run_method_b(raw, CENTER_COLORS[curr])
+                        
+                    elif "SVM" in algo_choice:
+                        det, raw_bgrs, overlay, err = run_method_c(raw, CENTER_COLORS[curr])
+
+                    if err:
+                        st.error(err)
+                    elif det:
+                        det[4] = CENTER_COLORS[curr]
+                        st.session_state.cube_state[curr] = det
+                        mark_confirmed(curr); push_history()
+                        
+                        # Store scan result for persistent feedback display
+                        st.session_state.scan_result = {
+                            'detected': det,
+                            'raw_bgrs': [bgr.tolist() if hasattr(bgr, 'tolist') else list(bgr) for bgr in raw_bgrs],
+                            'overlay': overlay,
+                            'engine': engine_name,
+                            'face': curr,
+                        }
+                        st.rerun()
+            
+            # Show persistent detection feedback (survives rerun)
+            if st.session_state.scan_result and st.session_state.scan_result.get('face') == curr:
+                sr = st.session_state.scan_result
+                # Reconstruct bgr arrays
+                bgr_arrays = [np.array(b, dtype=np.uint8) for b in sr['raw_bgrs']]
+                render_detection_feedback({
+                    'detected': sr['detected'],
+                    'raw_bgrs': bgr_arrays,
+                    'overlay': sr.get('overlay'),
+                    'engine': sr['engine'],
+                    'face': sr['face'],
+                })
+                
+                # Accept / Retry buttons
+                st.markdown("")
+                bc1, bc2 = st.columns(2)
+                if bc1.button("✅ Accept & Next Face", type="primary", use_container_width=True):
+                    st.session_state.scan_result = None
+                    next_idx = (FACES.index(curr)+1) % 6
+                    remaining = [f for f in FACES if not face_complete(f)]
+                    st.session_state.active_face = remaining[0] if remaining else FACES[next_idx]
+                    st.rerun()
+                if bc2.button("🔄 Retry Scan", use_container_width=True):
+                    unmark_confirmed(curr)
+                    st.session_state.cube_state[curr] = ['White']*4+[CENTER_COLORS[curr]]+['White']*4
+                    st.session_state.scan_result = None
+                    push_history(); st.rerun()
+        else:
+            # No file uploaded — show helpful hint
+            st.info(f"📷 Upload a photo of the **{curr}** face (center = {COLOR_EMOJIS[CENTER_COLORS[curr]]} {CENTER_COLORS[curr]})")
+    
     with col_r:
-        st.markdown('<span style="font-size:11px;font-weight:800;text-transform:uppercase;color:#64748b;">✏️ Manual Override</span>', unsafe_allow_html=True)
+        st.markdown('<span class="slabel">✏️ Manual Grid</span>', unsafe_allow_html=True)
+        
+        # Color progression for cycling
         C_SEQ = ['White', 'Red', 'Green', 'Yellow', 'Orange', 'Blue']
-        def cycle_stk(f, ix):
-            cur = st.session_state.cube_state[f][ix]
-            st.session_state.cube_state[f][ix] = C_SEQ[(C_SEQ.index(cur)+1)%6]
-            if f not in st.session_state.confirmed_faces: st.session_state.confirmed_faces.append(f)
-            st.session_state.last_solution = None; push_history()
+        
+        def cycle_stk(face, ix):
+            cur_c = st.session_state.cube_state[face][ix]
+            # Find next color in sequence
+            next_c = C_SEQ[(C_SEQ.index(cur_c) + 1) % len(C_SEQ)]
+            st.session_state.cube_state[face][ix] = next_c
+            mark_confirmed(face); push_history()
 
         for r in range(3):
             cols = st.columns(3)
@@ -209,27 +610,45 @@ if app_mode == "🧩 Scan & Solve":
                 idx = r*3+c; cv = st.session_state.cube_state[curr][idx]
                 if idx==4: cols[c].button(f"🔒{COLOR_EMOJIS[cv]}", disabled=True, use_container_width=True)
                 else: cols[c].button(f"{COLOR_EMOJIS[cv]}", key=f"g_{curr}_{idx}", on_click=cycle_stk, args=(curr, idx), use_container_width=True)
-
+    
     with col_map:
         render_live_cube_map(curr)
 
-    # Physics Check & Solve
-    st.divider()
-    all_colors = [s for f in FACES for s in st.session_state.cube_state[f]]
-    counts = Counter(all_colors)
-    errs = [c for c in HEX_COLORS if counts[c]!=9]
-    
+    # Action Footer
+    st.markdown('<div class="action-row">', unsafe_allow_html=True)
+    a1, a2, a3 = st.columns(3)
+    if a1.button("🧹 Reset", use_container_width=True):
+        st.session_state.cube_state[curr] = ['White']*4+[CENTER_COLORS[curr]]+['White']*4
+        unmark_confirmed(curr); st.session_state.scan_result = None
+        push_history(); st.rerun()
+    if a2.button("🎨 Fill", use_container_width=True):
+        sel = st.session_state.selected_color
+        st.session_state.cube_state[curr] = [sel]*4+[CENTER_COLORS[curr]]+[sel]*4
+        mark_confirmed(curr); push_history(); st.rerun()
+    if a3.button("🚀 Confirm Face", use_container_width=True, type="primary"):
+        mark_confirmed(curr); rem = [f for f in FACES if not face_complete(f)]
+        if rem: st.session_state.active_face = rem[0]
+        st.session_state.scan_result = None
+        st.rerun()
+    st.markdown('', unsafe_allow_html=True)
+
+    # Result Section
+    all_s = [s for f in FACES for s in st.session_state.cube_state[f]]
+    errs = [c for c in HEX_COLORS if all_s.count(c)!=9]
     if not errs:
-        st.success("✨ Sticker count correct! Validating topology...")
-        if st.button("🚀 Solve Cube", type="primary", use_container_width=True):
-            success, res = solve_cube(st.session_state.cube_state)
-            if success: st.session_state.last_solution = res; st.rerun()
-            else: st.error(res)
-    else:
-        st.info("💡 Progress: " + " ".join([f"{COLOR_EMOJIS[c]} {counts[c]}/9" for c in counts]))
+        st.success("✨ Ready to solve!"); 
+        if st.button("⚡ Solve Cube", use_container_width=True, type="primary"):
+            sol = solve_cube(st.session_state.cube_state)
+            if sol.startswith("!"): st.error(sol)
+            else: st.session_state.last_solution = sol; st.rerun()
+    elif st.session_state.last_solution is None:
+        st.info("💡 Progress: " + ", ".join([f"{COLOR_EMOJIS[c]} {all_s.count(c)}/9" for c in errs]))
 
     if st.session_state.last_solution:
-        st.success(f"✅ Solution: {st.session_state.last_solution}")
+        st.markdown('<div class="mcard">', unsafe_allow_html=True)
+        st.markdown(f'<div class="sol-box">{st.session_state.last_solution}</div>', unsafe_allow_html=True)
+        render_3d_player(st.session_state.last_solution)
+        st.markdown('</div>', unsafe_allow_html=True)
 
-elif app_mode == "⚙️ Calibration":
-    st.info("Calibration Mode: Upload a photo of a single color face to tune OpenCV thresholds.")
+if app_mode == "⚙️ Calibration":
+    st.markdown('<div class="mcard">Settings & Calibration logic here...</div>', unsafe_allow_html=True)
