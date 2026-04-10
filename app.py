@@ -25,34 +25,40 @@ st.markdown("""
 
 html,body,[data-testid="stAppViewContainer"],[data-testid="stMain"]{
     font-family:'Outfit',sans-serif!important;
-    background:#ffffff!important; color:#1e293b!important;}
-[data-testid="stMainBlockContainer"]{padding-top:20px!important;}
+    background:#f4f7fb!important; color:#1e293b!important;}
+[data-testid="stMainBlockContainer"]{padding-top:30px!important;}
 
 /* ── Minimalist Card ── */
-.mcard{background:#ffffff; border:1.5px solid #e2e8f0; border-radius:14px;
-    padding:20px; margin-bottom:16px; box-shadow:0 4px 20px rgba(0,0,0,.04);}
-.slabel{font-size:10px; font-weight:700; letter-spacing:1px; text-transform:uppercase;
-    color:#94a3b8; margin-bottom:8px; display:block;}
+.mcard{background:#ffffff; border:none; border-radius:24px;
+    padding:28px; margin-bottom:20px; box-shadow:0 10px 30px -5px rgba(0,0,0,0.05), 0 4px 10px -2px rgba(0,0,0,0.02);}
+.slabel{font-size:11px; font-weight:800; letter-spacing:1.5px; text-transform:uppercase;
+    color:#94a3b8; margin-bottom:12px; display:block; opacity:0.8;}
 
-/* ── Unified Command Bar ── */
-.cmd-bar{display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap;}
-.cmd-chip{flex:1; min-width:60px; background:#f8fafc; border-radius:8px; padding:6px 4px;
-    text-align:center; font-size:10px; font-weight:700; border:1.5px solid #e2e8f0; cursor:pointer;}
-.cmd-active{border-color:#6366f1; background:#f5f3ff; color:#6366f1;}
+/* ── Unified Power Row ── */
+.power-row{display:flex; gap:8px; margin-bottom:15px; flex-wrap:wrap;}
+.power-btn{flex:1; min-width:85px; background:#ffffff; border-radius:12px; padding:12px 6px;
+    text-align:center; font-size:12px; font-weight:700; border:1.8px solid #f1f5f9; 
+    transition:all 0.2s ease; cursor:pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.02);}
+.power-btn:hover{transform:translateY(-2px); border-color:#6366f1; box-shadow:0 8px 20px -5px rgba(99,102,241,0.2);}
 
-/* ── Action buttons ── */
-.action-row{display:flex; gap:8px; margin-top:16px; padding-top:16px; border-top:1px solid #f1f5f9;}
-.stButton>button{border-radius:10px!important; font-family:'Outfit',sans-serif!important;
-    font-weight:600!important; transition:all .15s ease!important;}
+/* ── Grid Aesthetics ── */
+.stButton>button{border-radius:12px!important; font-family:'Outfit',sans-serif!important;
+    font-weight:700!important; transition:all 0.15s cubic-bezier(0.4, 0, 0.2, 1)!important;
+    border:1.5px solid #f1f5f9!important; background:#ffffff!important;}
+.stButton>button:hover{border-color:#6366f1!important; transform:scale(1.02);}
+
+/* ── Action Footers ── */
+.action-row{display:flex; gap:10px; margin-top:20px; padding-top:20px; border-top:1px solid #f8fafc;}
 
 /* ── Solution box ── */
-.sol-box{background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:16px;
-    font-family:'Courier New',monospace; font-size:14px; font-weight:700; color:#1e293b;}
+.sol-box{background:#f8fafc; border:1px solid #e2e8f0; border-radius:16px; padding:20px;
+    font-family:'Courier New',monospace; font-size:15px; font-weight:800; color:#1e293b;
+    box-shadow:inset 0 2px 4px rgba(0,0,0,0.03);}
 
 /* ── Sidebar ── */
-[data-testid="stSidebar"]{background:#f8fafc!important; border-right:1px solid #e2e8f0!important;}
+[data-testid="stSidebar"]{background:#ffffff!important; border-right:1px solid #f1f5f9!important;}
 [data-testid="stSidebar"] *{color:#475569!important;}
-[data-testid="stSidebar"] hr{border-color:#e2e8f0!important;}
+[data-testid="stSidebar"] hr{border-color:#f1f5f9!important;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -215,23 +221,29 @@ if app_mode == "🧩 Scan & Solve":
     curr = st.session_state.active_face
     st.markdown('<div class="mcard">', unsafe_allow_html=True)
     
-    # Nav & Tool Bar
-    st.markdown('<span class="slabel">📍 Navigation & Brush</span>', unsafe_allow_html=True)
-    c1 = st.columns(6)
+    # ── One-Line Power Row ──────────────────────────────────────────────────
+    st.markdown('<span class="slabel">📍 Focus & Paint Brush</span>', unsafe_allow_html=True)
+    pw_cols = st.columns(6)
     for i, f in enumerate(FACES):
-        if c1[i].button(f"{COLOR_EMOJIS[CENTER_COLORS[f]]}\n{f}", key=f"n_{f}", use_container_width=True, type="primary" if f==curr else "secondary"):
-            st.session_state.active_face = f; st.session_state.selected_color = CENTER_COLORS[f]; st.rerun()
-            
-    sel = st.session_state.selected_color
-    c2 = st.columns(6)
-    for i, cname in enumerate(HEX_COLORS):
-        if c2[i].button(f"{'✅' if sel==cname else ''}{COLOR_EMOJIS[cname]}", key=f"p_{cname}", use_container_width=True):
-            st.session_state.selected_color = cname; st.rerun()
+        cc = CENTER_COLORS[f]
+        is_act = (f == curr)
+        # Beautified label with emoji + name
+        lbl = f"{COLOR_EMOJIS[cc]} {f}" 
+        btn_type = "primary" if is_act else "secondary"
+        
+        if pw_cols[i].button(lbl, key=f"pwr_{f}", use_container_width=True, type=btn_type):
+            st.session_state.active_face = f
+            st.session_state.selected_color = cc
+            st.rerun()
 
+    # Mini Palette Indicator (Subtle underline of active color)
+    sel = st.session_state.selected_color
+    st.markdown(f"<div style='text-align:right; font-size:11px; color:#94a3b8; font-weight:700;'>Brush: {COLOR_EMOJIS[sel]} {sel}</div>", unsafe_allow_html=True)
+    
     st.divider()
 
     # Input Body
-    col_l, col_r = st.columns(2)
+    col_l, col_r = st.columns(2, gap="large")
     with col_l:
         st.markdown('<span class="slabel">📷 Scan Face</span>', unsafe_allow_html=True)
         up = st.file_uploader("Upload", type=['jpg','png','jpeg'], key=f"up_{curr}", label_visibility="collapsed")
@@ -245,7 +257,17 @@ if app_mode == "🧩 Scan & Solve":
                         st.session_state.cube_state[curr] = det; det[4] = CENTER_COLORS[curr]
                         mark_confirmed(curr); push_history(); st.rerun()
     with col_r:
-        st.markdown('<span class="slabel">✏️ Manual Edit</span>', unsafe_allow_html=True)
+        st.markdown('<span class="slabel">✏️ Manual Grid</span>', unsafe_allow_html=True)
+        
+        # Mini Palette Override
+        m_pal = st.columns(6)
+        for i, cname in enumerate(HEX_COLORS):
+            if m_pal[i].button(COLOR_EMOJIS[cname], key=f"mpal_{cname}", use_container_width=True, help=f"Set brush to {cname}"):
+                st.session_state.selected_color = cname
+                st.rerun()
+        
+        st.markdown("<div style='height:12px;'></div>", unsafe_allow_html=True)
+
         def pnt(face, ix): st.session_state.cube_state[face][ix] = st.session_state.selected_color; mark_confirmed(face); push_history()
         for r in range(3):
             cols = st.columns(3)
