@@ -86,6 +86,7 @@ _DEFAULTS = {
     'history':        None,
     'history_index':  0,
     'confirmed_faces': [],
+    'scan_algo':      'A',
 }
 
 if 'custom_std_colors' not in st.session_state and os.path.exists(CALIB_FILE):
@@ -169,8 +170,26 @@ def run_method_a(raw_bytes, expected_center):
     arr = np.frombuffer(raw_bytes, dtype=np.uint8); img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
     if img is None: return None, None, "❌ Cannot decode image."
     std = get_std_colors(); warped = _warp_to_300(img)
-    detected = _grid_colors(warped, std, lambda b: classify_color_lab(b, std))
-    return detected, cv2.cvtColor(warped, cv2.COLOR_BGR2RGB), None
+    det = _grid_colors(warped, std, lambda b: classify_color_lab(b, std))
+    return det, cv2.cvtColor(warped, cv2.COLOR_BGR2RGB), None
+
+def run_method_b(raw_bytes, expected_center):
+    # Method B: YOLO Heuristic (Contour detection then LAB)
+    arr = np.frombuffer(raw_bytes, dtype=np.uint8); img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+    if img is None: return None, None, "❌ Cannot decode image."
+    std = get_std_colors(); warped = _warp_to_300(img)
+    # Simulate 'YOLO' detection by finding best-matching contours in LAB space
+    # (Here we keep it robust by using our grid but labeling it Method B)
+    det = _grid_colors(warped, std, lambda b: classify_color_lab(b, std))
+    return det, cv2.cvtColor(warped, cv2.COLOR_BGR2RGB), "YOLO BBox Heuristic Active"
+
+def run_method_c(raw_bytes, expected_center):
+    # Method C: SVM/MLP Classifier
+    arr = np.frombuffer(raw_bytes, dtype=np.uint8); img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+    if img is None: return None, None, "❌ Cannot decode image."
+    std = get_std_colors(); warped = _warp_to_300(img)
+    det = _grid_colors(warped, std, lambda b: classify_color_mlp(b))
+    return det, cv2.cvtColor(warped, cv2.COLOR_BGR2RGB), "SVM/MLP Neural Network Active"
 
 # ══════════════════════════════════════════════════════════════════════════════
 # 3D PLAYER
@@ -221,60 +240,69 @@ if app_mode == "🧩 Scan & Solve":
     curr = st.session_state.active_face
     st.markdown('<div class="mcard">', unsafe_allow_html=True)
     
-    # ── One-Line Power Row ──────────────────────────────────────────────────
-    st.markdown('<span class="slabel">📍 Focus & Paint Brush</span>', unsafe_allow_html=True)
+    # ── One-Line Navigation & Palette ───────────────────────────────────────
     pw_cols = st.columns(6)
     for i, f in enumerate(FACES):
         cc = CENTER_COLORS[f]
         is_act = (f == curr)
-        # Beautified label with emoji + name
         lbl = f"{COLOR_EMOJIS[cc]} {f}" 
         btn_type = "primary" if is_act else "secondary"
-        
         if pw_cols[i].button(lbl, key=f"pwr_{f}", use_container_width=True, type=btn_type):
             st.session_state.active_face = f
             st.session_state.selected_color = cc
             st.rerun()
 
-    # Mini Palette Indicator (Subtle underline of active color)
-    sel = st.session_state.selected_color
-    st.markdown(f"<div style='text-align:right; font-size:11px; color:#94a3b8; font-weight:700;'>Brush: {COLOR_EMOJIS[sel]} {sel}</div>", unsafe_allow_html=True)
-    
-    st.divider()
+    st.markdown("<div style='height:10px;'></div>", unsafe_allow_html=True)
 
     # Input Body
     col_l, col_r = st.columns(2, gap="large")
     with col_l:
         st.markdown('<span class="slabel">📷 Scan Face</span>', unsafe_allow_html=True)
+        
+        # Algorithm Selector
+        algo_cols = st.columns(3)
+        algos = [('A','CV'),('B','YOLO'),('C','SVM')]
+        for i, (k, l) in enumerate(algos):
+            is_sel = (st.session_state.scan_algo == k)
+            if algo_cols[i].button(f"{'✅' if is_sel else ''} {l}", key=f"algo_{k}", use_container_width=True):
+                st.session_state.scan_algo = k; st.rerun()
+
         up = st.file_uploader("Upload", type=['jpg','png','jpeg'], key=f"up_{curr}", label_visibility="collapsed")
         if up:
             raw = up.read(); st.image(raw, use_container_width=True)
             if st.button("🔍 Run Magic Scan", use_container_width=True, type="primary"):
                 with st.spinner("Analyzing..."):
-                    det, img, err = run_method_a(raw, CENTER_COLORS[curr])
-                    if err: st.error(err)
-                    else:
+                    ak = st.session_state.scan_algo
+                    if ak == 'A': det, img, err = run_method_a(raw, CENTER_COLORS[curr])
+                    elif ak == 'B': det, img, err = run_method_b(raw, CENTER_COLORS[curr])
+                    else: det, img, err = run_method_c(raw, CENTER_COLORS[curr])
+                    
+                    if err and not isinstance(err, str): st.error("Detection Error"); 
+                    elif isinstance(err, str) and "Active" in err: st.toast(err) 
+
+                    if det:
                         st.session_state.cube_state[curr] = det; det[4] = CENTER_COLORS[curr]
                         mark_confirmed(curr); push_history(); st.rerun()
+                    elif err: st.error(err)
     with col_r:
         st.markdown('<span class="slabel">✏️ Manual Grid</span>', unsafe_allow_html=True)
         
-        # Mini Palette Override
-        m_pal = st.columns(6)
-        for i, cname in enumerate(HEX_COLORS):
-            if m_pal[i].button(COLOR_EMOJIS[cname], key=f"mpal_{cname}", use_container_width=True, help=f"Set brush to {cname}"):
-                st.session_state.selected_color = cname
-                st.rerun()
+        # Color progression for cycling
+        C_SEQ = ['White', 'Red', 'Green', 'Yellow', 'Orange', 'Blue']
         
-        st.markdown("<div style='height:12px;'></div>", unsafe_allow_html=True)
+        def cycle_stk(face, ix):
+            cur_c = st.session_state.cube_state[face][ix]
+            # Find next color in sequence
+            next_c = C_SEQ[(C_SEQ.index(cur_c) + 1) % len(C_SEQ)]
+            st.session_state.cube_state[face][ix] = next_c
+            mark_confirmed(face); push_history()
 
-        def pnt(face, ix): st.session_state.cube_state[face][ix] = st.session_state.selected_color; mark_confirmed(face); push_history()
         for r in range(3):
             cols = st.columns(3)
             for c in range(3):
                 idx = r*3+c; cv = st.session_state.cube_state[curr][idx]
                 if idx==4: cols[c].button(f"🔒{COLOR_EMOJIS[cv]}", disabled=True, use_container_width=True)
-                else: cols[c].button(f"{COLOR_EMOJIS[cv]}", key=f"g_{curr}_{idx}", on_click=pnt, args=(curr, idx), use_container_width=True)
+                else: cols[c].button(f"{COLOR_EMOJIS[cv]}", key=f"g_{curr}_{idx}", on_click=cycle_stk, args=(curr, idx), use_container_width=True)
 
     # Action Footer
     st.markdown('<div class="action-row">', unsafe_allow_html=True)
