@@ -153,12 +153,6 @@ ALGO_INFO = {
     "A": {"label":"Method A — OpenCV Heuristic",  "short":"OpenCV CIE-LAB",
           "icon":"🔵","tag":"Classical CV","css":"a",
           "desc":"Centroid-snap grid + weighted CIE-LAB distance matching. No training required."},
-    "B": {"label":"Method B — YOLOv8 Detection",  "short":"YOLO Object Det.",
-          "icon":"🟢","tag":"Object Detection","css":"b",
-          "desc":"Detects cube bounding box, crops it, then classifies each sticker region."},
-    "C": {"label":"Method C — CNN Classification","short":"MLP Neural Net",
-          "icon":"🟠","tag":"Deep Learning","css":"c",
-          "desc":"Splits face into 9 tiles; each tile classified by a 2-layer neural network (MLP)."},
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -474,23 +468,6 @@ with st.sidebar:
     st.divider()
 
     if app_mode == "🧩 Scan & Solve":
-        # ── Face navigator ──────────────────────────────────────────
-        st.markdown("**Face Navigator**")
-        grid_map = [[None,'Up',None,None],['Left','Front','Right','Back'],[None,'Down',None,None]]
-        curr = st.session_state.active_face
-        for row in grid_map:
-            rc = st.columns(4)
-            for i, fk in enumerate(row):
-                if fk:
-                    lbl = f"▶{fk[0]}" if fk==curr else fk[0]
-                    if rc[i].button(f"{COLOR_EMOJIS[CENTER_COLORS[fk]]}{lbl}",
-                                    key=f"nav_{fk}", use_container_width=True):
-                        st.session_state.active_face = fk
-                        st.session_state.selected_color = CENTER_COLORS[fk]
-                        st.session_state.preview = None
-                        st.rerun()
-        st.divider()
-
         # ── Inventory bars ──────────────────────────────────────────
         st.markdown("**Sticker Inventory**")
         all_s  = [s for f in FACES for s in st.session_state.cube_state[f]]
@@ -515,7 +492,6 @@ with st.sidebar:
             st.session_state.preview = None
             st.session_state.confirmed_faces = []
             push_history(); st.rerun()
-
 
 # ══════════════════════════════════════════════════════════════════════════════
 # HERO BANNER
@@ -542,6 +518,7 @@ st.markdown(f"""
 # ══════════════════════════════════════════════════════════════════════════════
 if app_mode == "🧩 Scan & Solve":
     curr = st.session_state.active_face
+    done_n = sum(1 for f in FACES if face_complete(f))
 
     # ── Face progress chips ──────────────────────────────────────────────────
     chips = ""
@@ -552,30 +529,15 @@ if app_mode == "🧩 Scan & Solve":
         chips += f'<div class="chip {cls}">{COLOR_EMOJIS[CENTER_COLORS[f]]}<br>{ico} {f}</div>'
     st.markdown(f'<div class="prow">{chips}</div>', unsafe_allow_html=True)
 
-    # ── Face nav bar ─────────────────────────────────────────────────────────
-    nav1, nav2, nav3 = st.columns([1,4,1])
-    with nav1:
-        if st.button("◀ Prev", use_container_width=True):
-            pf = FACES[(FACES.index(curr)-1)%6]
-            st.session_state.active_face = pf
-            st.session_state.selected_color = CENTER_COLORS[pf]
-            st.session_state.preview = None
-            st.rerun()
-    with nav2:
-        done_n = sum(1 for f in FACES if face_complete(f))
-        st.markdown(
-            f"<div style='text-align:center;'>"
-            f"<span style='font-size:1.35rem;font-weight:800;color:#6366f1;'>"
-            f"{COLOR_EMOJIS[CENTER_COLORS[curr]]} {curr} Face</span>"
-            f"<span style='font-size:11px;color:#9ca3af;margin-left:12px;'>{done_n}/6 ready</span>"
-            f"</div>", unsafe_allow_html=True)
-    with nav3:
-        if st.button("Next ▶", use_container_width=True):
-            nf = FACES[(FACES.index(curr)+1)%6]
-            st.session_state.active_face = nf
-            st.session_state.selected_color = CENTER_COLORS[nf]
-            st.session_state.preview = None
-            st.rerun()
+    st.markdown(f"""
+    <div style='text-align:center;margin:15px 0 10px;'>
+      <span style='font-size:1.6rem;font-weight:800;color:#1e293b;'>
+        {COLOR_EMOJIS[CENTER_COLORS[curr]]} Target: {curr} Face
+      </span>
+      <span style='font-size:12px;color:#6366f1;margin-left:12px;font-weight:600;'>
+        {done_n}/6 Confirmed
+      </span>
+    </div>""", unsafe_allow_html=True)
 
     st.markdown("<div style='height:10px;'></div>", unsafe_allow_html=True)
 
@@ -584,43 +546,16 @@ if app_mode == "🧩 Scan & Solve":
     # ═══════════════════════ LEFT COLUMN ═══════════════════════════════════
     with col_left:
 
-        # ── Algorithm Selector ───────────────────────────────────────────
-        st.markdown('<div class="glass">', unsafe_allow_html=True)
-        st.markdown('<span class="slabel">🤖 Visual Engine (Algorithm)</span>', unsafe_allow_html=True)
-
-        a_cols = st.columns(3)
-        for i,(key,info) in enumerate(ALGO_INFO.items()):
-            active = st.session_state.scan_algo == key
-            extra  = f"algo-active-{info['css']}" if active else ""
-            a_cols[i].markdown(
-                f'<div class="algo-{info["css"]} {extra}">'
-                f'<div style="font-size:1.5rem;">{info["icon"]}</div>'
-                f'<div class="algo-title">{key}: {info["tag"]}</div>'
-                f'<div class="algo-sub">{info["desc"]}</div>'
-                f'</div>', unsafe_allow_html=True)
-            if a_cols[i].button(f"Select {key}", key=f"sel_{key}", use_container_width=True):
-                st.session_state.scan_algo = key
-                st.session_state.preview = None
-                st.rerun()
-
-        algo_key = st.session_state.scan_algo
+        algo_key = "A" # Simplify: Hardcode to OpenCV Heuristic
         info     = ALGO_INFO[algo_key]
-        st.markdown(
-            f"<div style='margin-top:10px;background:#f5f3ff;border-radius:10px;"
-            f"padding:10px 14px;font-size:12px;color:#6366f1;font-weight:600;'>"
-            f"Active: {info['icon']} <b>{info['label']}</b>"
-            f"</div>", unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
 
-        # ── Photo Upload + Scan ──────────────────────────────────────────
+        # ── Photo Scan ───────────────────────────────────────────────────
         st.markdown('<div class="glass">', unsafe_allow_html=True)
         ec_label = CENTER_COLORS[curr]
         st.markdown(
-            f'<span class="slabel">📷 Photo Scan — '
-            f'{curr} Face</span>'
             f'<div style="margin-bottom:8px;">'  
             f'<span class="centre-hint">'
-            f'🎯 Expected centre: {COLOR_EMOJIS[ec_label]} <b>{ec_label}</b>'
+            f'🎯 Aim for center: {COLOR_EMOJIS[ec_label]} <b>{ec_label}</b>'
             f'</span></div>',
             unsafe_allow_html=True)
 
@@ -636,18 +571,9 @@ if app_mode == "🧩 Scan & Solve":
             with prev_col:
                 st.image(raw_bytes, use_container_width=True, caption="Uploaded photo")
             with btn_col:
-                ai = ALGO_INFO[algo_key]
-                st.markdown(f"""
-                <div style='background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;
-                            padding:14px;text-align:center;'>
-                  <div style='font-size:1.8rem;'>{ai['icon']}</div>
-                  <div style='font-size:11px;font-weight:700;color:#6366f1;margin:5px 0 4px;'>
-                    {ai['short']}</div>
-                  <div style='font-size:10px;color:#94a3b8;'>{ai['desc']}</div>
-                </div>""", unsafe_allow_html=True)
-
+                st.markdown("<div style='height:15px;'></div>", unsafe_allow_html=True)
                 scan_clicked = st.button(
-                    f"🔍 Scan with {algo_key}", type="primary",
+                    f"🔍 Run Magic Scan", type="primary",
                     use_container_width=True, key="scan_btn")
 
             if scan_clicked:
@@ -816,9 +742,9 @@ if app_mode == "🧩 Scan & Solve":
             </div>""" % curr, unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # ── Manual Colour Editor ─────────────────────────────────────────
-        st.markdown('<div class="glass">', unsafe_allow_html=True)
-        st.markdown('<span class="slabel">✏️ Manual Sticker Editor</span>', unsafe_allow_html=True)
+        # ── Manual Correction ─────────────────────────────────────────────
+        st.markdown('<div class="glass" style="margin-top:-10px;">', unsafe_allow_html=True)
+
 
         # Colour palette
         pal = st.columns(6)
@@ -903,22 +829,12 @@ if app_mode == "🧩 Scan & Solve":
         errors   = [c for c in inv if inv[c]!=9]
         is_ready = len(errors)==0
 
-        ok_cls  = lambda ok: 'scard-ok' if ok else ''
-        err_cls = lambda e:  'scard-err' if e else 'scard-ok'
-        sc1, sc2, sc3, sc4 = st.columns(4)
+        sc1, sc2 = st.columns(2)
         sc1.markdown(
-            f'<div class="scard {ok_cls(done_n==6)}">'
-            f'<div class="snum">{done_n}/6</div>'
-            f'<div class="slbl">Faces Confirmed</div></div>', unsafe_allow_html=True)
-        sc2.markdown(
-            f'<div class="scard {err_cls(bool(errors))}">'
-            f'<div class="snum">{len(errors)}</div>'
-            f'<div class="slbl">Colour Errors</div></div>', unsafe_allow_html=True)
-        sc3.markdown(
             f'<div class="scard">'
             f'<div class="snum">{54 - sum(1 for s in all_stk if s=="White") + sum(1 for f in FACES if CENTER_COLORS[f]=="White")}</div>'
             f'<div class="slbl">Filled Stickers</div></div>', unsafe_allow_html=True)
-        sc4.markdown(
+        sc2.markdown(
             f'<div class="scard">'
             f'<div class="snum">{st.session_state.history_index}</div>'
             f'<div class="slbl">Edits Made</div></div>', unsafe_allow_html=True)
