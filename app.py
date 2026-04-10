@@ -116,7 +116,6 @@ _DEFAULTS = {
     'history':        None,
     'history_index':  0,
     'confirmed_faces': [],
-    'scan_algo':      'A',
 }
 
 if 'custom_std_colors' not in st.session_state and os.path.exists(CALIB_FILE):
@@ -267,8 +266,6 @@ with st.sidebar:
 # ══════════════════════════════════════════════════════════════════════════════
 if app_mode == "🧩 Scan & Solve":
     curr = st.session_state.active_face
-    st.markdown('<div class="mcard">', unsafe_allow_html=True)
-    
     # ── One-Line Navigation & Palette ───────────────────────────────────────
     pw_cols = st.columns(6)
     for i, f in enumerate(FACES):
@@ -286,32 +283,61 @@ if app_mode == "🧩 Scan & Solve":
     # Input Body
     col_l, col_r = st.columns(2, gap="large")
     with col_l:
-        st.markdown('<span class="slabel">📷 Scan Face</span>', unsafe_allow_html=True)
+        st.markdown("#### 📂 Photo Assist")
+        up = st.file_uploader("Upload reference", type=['jpg','png','jpeg'], key=f"up_{curr}", label_visibility="collapsed")
         
-        # Algorithm Selector
-        algo_cols = st.columns(3)
-        algos = [('A','CV'),('B','YOLO'),('C','SVM')]
-        for i, (k, l) in enumerate(algos):
-            is_sel = (st.session_state.scan_algo == k)
-            if algo_cols[i].button(f"{'✅' if is_sel else ''} {l}", key=f"algo_{k}", use_container_width=True):
-                st.session_state.scan_algo = k; st.rerun()
-
-        up = st.file_uploader("Upload", type=['jpg','png','jpeg'], key=f"up_{curr}", label_visibility="collapsed")
         if up:
-            raw = up.read(); st.image(raw, use_container_width=True)
-            if st.button("🔍 Run Magic Scan", use_container_width=True, type="primary"):
-                with st.spinner("Analyzing..."):
-                    ak = st.session_state.scan_algo
-                    if ak == 'A': det, img, err = run_method_a(raw, CENTER_COLORS[curr])
-                    elif ak == 'B': det, img, err = run_method_b(raw, CENTER_COLORS[curr])
-                    else: det, img, err = run_method_c(raw, CENTER_COLORS[curr])
+            raw = up.read()
+            # 1. Show the uploaded original photo
+            st.image(raw, use_container_width=True)
+            
+            st.divider()
+            
+            # 2. Vision Engine selector (clean dropdown)
+            st.markdown("##### 🔬 Vision Engine")
+            algo_choice = st.selectbox(
+                "Select AI Model:",
+                ["📐 OpenCV (Math Distance)", "🎯 YOLOv8 (Object Detection)", "🧠 SVM (Machine Learning)"],
+                label_visibility="collapsed",
+                key=f"algo_sel_{curr}"
+            )
+
+            # 3. Dynamic button label follows selected engine
+            engine_name = algo_choice.split(" ")[1]  # Extract OpenCV, YOLOv8, or SVM
+            if st.button(f"📸 Scan with {engine_name}", type="primary", use_container_width=True):
+                
+                with st.spinner(f"Analyzing via {engine_name}..."):
                     
-                    if err and not isinstance(err, str): st.error("Detection Error"); 
-                    elif isinstance(err, str) and "Active" in err: st.toast(err) 
+                    det, img, err = None, None, None
+                    
+                    # 4. Algorithm routing
+                    if "OpenCV" in algo_choice:
+                        det, img, err = run_method_a(raw, CENTER_COLORS[curr])
+                        
+                    elif "YOLOv8" in algo_choice:
+                        det, img, err = run_method_b(raw, CENTER_COLORS[curr])
+                        
+                    elif "SVM" in algo_choice:
+                        det, img, err = run_method_c(raw, CENTER_COLORS[curr])
+
+                    # 5. Unified result handling
+                    if err and not isinstance(err, str): st.error("Detection Error")
+                    elif isinstance(err, str) and "Active" in err: st.toast(err)
 
                     if det:
-                        st.session_state.cube_state[curr] = det; det[4] = CENTER_COLORS[curr]
-                        mark_confirmed(curr); push_history(); st.rerun()
+                        det[4] = CENTER_COLORS[curr]
+                        st.session_state.cube_state[curr] = det
+                        mark_confirmed(curr); push_history()
+                        
+                        # Debug View — shows how each engine "sees" the face
+                        if img is not None:
+                            with st.expander(f"👁️ {engine_name} Debug View", expanded=True):
+                                st.image(img, use_container_width=True, caption=f"How {engine_name} sees it")
+                        
+                        # Brief pause so user can see results, then auto-advance
+                        import time; time.sleep(1)
+                        st.session_state.active_face = FACES[(FACES.index(curr)+1)%6]
+                        st.rerun()
                     elif err: st.error(err)
     with col_r:
         st.markdown('<span class="slabel">✏️ Manual Grid</span>', unsafe_allow_html=True)
@@ -346,7 +372,7 @@ if app_mode == "🧩 Scan & Solve":
         mark_confirmed(curr); rem = [f for f in FACES if not face_complete(f)]
         if rem: st.session_state.active_face = rem[0]
         st.rerun()
-    st.markdown('</div></div>', unsafe_allow_html=True)
+    st.markdown('', unsafe_allow_html=True)
 
     # Result Section
     all_s = [s for f in FACES for s in st.session_state.cube_state[f]]
