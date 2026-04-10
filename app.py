@@ -571,12 +571,18 @@ if app_mode == "🧩 Scan & Solve":
 
                     if err:
                         st.error(err)
+                        # Diagnostic: Still show the overlay if available
+                        if overlay is not None:
+                            st.session_state.scan_result = {
+                                'detected': det if det else [],
+                                'raw_bgrs': [b.tolist() for b in raw_bgrs] if raw_bgrs else [],
+                                'overlay': overlay, 'engine': engine_name, 'face': curr
+                            }
                     elif det:
                         det[4] = CENTER_COLORS[curr]
                         st.session_state.cube_state[curr] = det
                         mark_confirmed(curr); push_history()
                         
-                        # Store scan result for persistent feedback display
                         st.session_state.scan_result = {
                             'detected': det,
                             'raw_bgrs': [bgr.tolist() if hasattr(bgr, 'tolist') else list(bgr) for bgr in raw_bgrs],
