@@ -177,7 +177,7 @@ def unmark_confirmed(face):
     cf = st.session_state.confirmed_faces
     if face in cf: cf.remove(face)
 
-    def classify_color_lab(bgr_pixel, std_colors):
+def classify_color_lab(bgr_pixel, std_colors):
     pixel_mat = np.uint8([[bgr_pixel]])
     lab_pixel = cv2.cvtColor(pixel_mat, cv2.COLOR_BGR2LAB)[0][0]
     
