@@ -491,7 +491,7 @@ if app_mode == "🧩 Scan & Solve":
         up = st.file_uploader("Upload reference", type=['jpg','png','jpeg'], key=f"up_{curr}", label_visibility="collapsed")
         
         if up:
-            raw = up.read()
+            raw = up.getvalue()  # Changed to getvalue() for safer Streamlit reruns
             # 1. Show the uploaded original photo
             st.image(raw, caption="📷 Your uploaded photo", use_container_width=True)
             
@@ -506,11 +506,15 @@ if app_mode == "🧩 Scan & Solve":
                 key=f"algo_sel_{curr}"
             )
 
-            # 3. Dynamic button label follows selected engine
-            engine_name = algo_choice.split(" ")[1]  # Extract OpenCV, YOLOv8, or SVM
-            if st.button(f"📸 Scan with {engine_name}", type="primary", use_container_width=True):
+            # 3. AUTO-SCAN: Trigger analysis immediately when photo is uploaded or algorithm changes
+            engine_name = algo_choice.split(" ")[1]
+            
+            # We use a session state flag to prevent infinite re-scanning
+            scan_key = f"scanned_{curr}_{algo_choice}"
+            if scan_key not in st.session_state or st.session_state[scan_key] != raw:
+                st.session_state[scan_key] = raw # Mark this specific photo + algo combination as scanned
                 
-                with st.spinner(f"Analyzing via {engine_name}..."):
+                with st.spinner(f"Auto-Analyzing via {engine_name}..."):
                     
                     det, raw_bgrs, overlay, err = None, None, None, None
                     
@@ -529,7 +533,8 @@ if app_mode == "🧩 Scan & Solve":
                     elif det:
                         det[4] = CENTER_COLORS[curr]
                         st.session_state.cube_state[curr] = det
-                        mark_confirmed(curr); push_history()
+                        mark_confirmed(curr)
+                        push_history()
                         
                         # Store scan result for persistent feedback display
                         st.session_state.scan_result = {
@@ -567,6 +572,9 @@ if app_mode == "🧩 Scan & Solve":
                     unmark_confirmed(curr)
                     st.session_state.cube_state[curr] = ['White']*4+[CENTER_COLORS[curr]]+['White']*4
                     st.session_state.scan_result = None
+                    # Force a re-scan next time by clearing the memory key
+                    if scan_key in st.session_state:
+                        del st.session_state[scan_key]
                     push_history(); st.rerun()
         else:
             # No file uploaded — show helpful hint
