@@ -26,13 +26,12 @@ from pathlib import Path
 # Configuration
 # ---------------------------------------------------------------------------
 
-MODEL_PATH = os.path.join(os.path.dirname(__file__), "best.pt")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+MODEL_PATH = os.path.join(BASE_DIR, "best.pt")
 
 if not os.path.exists(MODEL_PATH):
-    MODEL_PATH = os.environ.get(
-        "YOLO_MODEL_PATH",
-        os.path.join(os.path.dirname(__file__), "runs", "detect", "rubik_cube", "weights", "best.pt"),
-    )
+    MODEL_PATH = os.path.join(BASE_DIR, "runs", "detect", "rubik_cube", "weights", "best.pt")
 
 # Detection thresholds
 CONFIDENCE_THRESHOLD = 0.25
