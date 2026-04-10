@@ -323,6 +323,7 @@ def run_method_b(raw_bytes, expected_center):
                         raw_bgrs.append(np.median(patch, axis=(0,1)).astype(np.uint8))
                 
                 # 3. Success with Hybrid mode
+                det[4] = expected_center  # Anchor the center sticker
                 overlay = cv2.cvtColor(cube_res["annotated"], cv2.COLOR_BGR2RGB)
                 return det, raw_bgrs, overlay, None
             
@@ -389,10 +390,10 @@ def render_live_cube_map(active_face):
         </div>'''
     
     html = f'''
-    <html><body style="margin:0;padding:0;background:transparent;font-family:Outfit,sans-serif;">
-    <div style="background:rgba(255,255,255,0.9);border-radius:20px;padding:20px;border:1px solid rgba(0,0,0,0.06);box-shadow:0 8px 24px -8px rgba(0,0,0,0.06);min-width:320px;">
-        <div style="font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#64748b;margin-bottom:20px;text-align:center;">🗺️ LIVE CUBE MAP</div>
-        <div style="display:grid; grid-template-areas: '. U . .' 'L F R B' '. D . .'; grid-gap:15px; justify-content:center; align-items:center;">
+    <html><body style="margin:0;padding:2px;background:transparent;font-family:Outfit,sans-serif;box-sizing:border-box;">
+    <div style="background:rgba(255,255,255,0.9);border-radius:20px;padding:15px;border:1px solid rgba(0,0,0,0.06);box-shadow:0 8px 24px -8px rgba(0,0,0,0.06); width:fit-content; margin:0 auto;">
+        <div style="font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#64748b;margin-bottom:15px;text-align:center;">🗺️ LIVE CUBE MAP</div>
+        <div style="display:grid; grid-template-areas: '. U . .' 'L F R B' '. D . .'; grid-gap:8px; justify-content:center; align-items:center;">
             {face_html('U', 'Up')}
             {face_html('L', 'Left')}
             {face_html('F', 'Front')}
@@ -400,13 +401,13 @@ def render_live_cube_map(active_face):
             {face_html('B', 'Back')}
             {face_html('D', 'Down')}
         </div>
-        <div style="text-align:center;margin-top:20px;font-size:10px;color:#94a3b8;letter-spacing:1px;font-family:Outfit,sans-serif;">
-            ✅ {len(confirmed)}/6 FACES CONFIRMED
+        <div style="text-align:center;margin-top:15px;font-size:10px;color:#94a3b8;letter-spacing:1px;font-family:Outfit,sans-serif;">
+            ✅ {len(confirmed)}/6 CONFIRMED
         </div>
     </div>
     </body></html>'''
     
-    components.html(html, height=400)
+    components.html(html, height=420)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
