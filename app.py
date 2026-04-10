@@ -468,15 +468,6 @@ with st.sidebar:
     st.divider()
 
     if app_mode == "🧩 Scan & Solve":
-        st.markdown("**Target Face**")
-        st.session_state.active_face = st.selectbox(
-            "Select face to scan/edit:",
-            FACES,
-            index=FACES.index(st.session_state.active_face),
-            label_visibility="collapsed"
-        )
-        st.divider()
-
         # ── Inventory bars ──────────────────────────────────────────
         st.markdown("**Sticker Inventory**")
         all_s  = [s for f in FACES for s in st.session_state.cube_state[f]]
@@ -535,9 +526,6 @@ if app_mode == "🧩 Scan & Solve":
     <div style='text-align:center;margin:15px 0 10px;'>
       <span style='font-size:1.6rem;font-weight:800;color:#1e293b;'>
         {COLOR_EMOJIS[CENTER_COLORS[curr]]} Target: {curr} Face
-      </span>
-      <span style='font-size:12px;color:#6366f1;margin-left:12px;font-weight:600;'>
-        {done_n}/6 Confirmed
       </span>
     </div>""", unsafe_allow_html=True)
 
@@ -744,8 +732,21 @@ if app_mode == "🧩 Scan & Solve":
             </div>""" % curr, unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # ── Manual Correction ─────────────────────────────────────────────
+        # ── Navigation & Manual Correction ─────────────────────────────────────
         st.markdown('<div class="glass" style="margin-top:-10px;">', unsafe_allow_html=True)
+
+        # Face selection chips (Mini)
+        st.markdown('<span class="slabel">📍 Switch Face</span>', unsafe_allow_html=True)
+        nav_cols = st.columns(6)
+        for i, f in enumerate(FACES):
+            done = face_complete(f); act = (f==curr)
+            cls  = "✅" if done else ("▶" if act else "○")
+            if nav_cols[i].button(f"{COLOR_EMOJIS[CENTER_COLORS[f]]}\n{f}", key=f"nav_{f}", use_container_width=True):
+                st.session_state.active_face = f
+                st.rerun()
+
+        st.markdown("<div style='height:12px;'></div>", unsafe_allow_html=True)
+        st.markdown('<span class="slabel">🎨 Paint Tool</span>', unsafe_allow_html=True)
 
 
         # Colour palette
