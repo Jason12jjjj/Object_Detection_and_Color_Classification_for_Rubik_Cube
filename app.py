@@ -468,6 +468,15 @@ with st.sidebar:
     st.divider()
 
     if app_mode == "🧩 Scan & Solve":
+        st.markdown("**Target Face**")
+        st.session_state.active_face = st.selectbox(
+            "Select face to scan/edit:",
+            FACES,
+            index=FACES.index(st.session_state.active_face),
+            label_visibility="collapsed"
+        )
+        st.divider()
+
         # ── Inventory bars ──────────────────────────────────────────
         st.markdown("**Sticker Inventory**")
         all_s  = [s for f in FACES for s in st.session_state.cube_state[f]]
@@ -520,14 +529,7 @@ if app_mode == "🧩 Scan & Solve":
     curr = st.session_state.active_face
     done_n = sum(1 for f in FACES if face_complete(f))
 
-    # ── Face progress chips ──────────────────────────────────────────────────
-    chips = ""
-    for f in FACES:
-        done = face_complete(f); act = (f==curr)
-        cls = "chip-done" if done else ("chip-active" if act else "chip-empty")
-        ico = "✅" if done else ("▶" if act else "○")
-        chips += f'<div class="chip {cls}">{COLOR_EMOJIS[CENTER_COLORS[f]]}<br>{ico} {f}</div>'
-    st.markdown(f'<div class="prow">{chips}</div>', unsafe_allow_html=True)
+    st.markdown("<div style='height:5px;'></div>", unsafe_allow_html=True)
 
     st.markdown(f"""
     <div style='text-align:center;margin:15px 0 10px;'>
@@ -944,112 +946,7 @@ if app_mode == "🧩 Scan & Solve":
             st.markdown('</div>', unsafe_allow_html=True)
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-            if uf:
-                try:
-                    bgr = extract_center_bgr(uf.read())
-                    if bgr is not None: extra_samples.append((bgr,cname))
-                except Exception: pass
-        if extra_samples and st.button("▶️ Run with Custom Samples", type="primary"):
-            with st.spinner("Running…"):
-                try:
-                    base = []
-                    for fname, lbl in IMAGE_LABEL_MAP.items():
-                        if os.path.exists(fname):
-                            with open(fname,"rb") as fh: raw=fh.read()
-                            bgr = extract_center_bgr(raw)
-                            if bgr is not None: base.append((bgr,lbl))
-                    st.session_state.cv_results = compare_methods(base+extra_samples)
-                    st.session_state.cv_samples  = base+extra_samples
-                    st.rerun()
-                except Exception as e: st.error(f"{e}")
 
-    # Results
-    if st.session_state.cv_results:
-        res   = st.session_state.cv_results
-        n     = len(st.session_state.cv_samples)
-        st.success(f"✅ Benchmark complete — **{n} images** · **3 methods** evaluated")
-
-        methods_ord = sorted(res, key=lambda m: res[m]["accuracy"], reverse=True)
-        accs = [res[m]["accuracy"]        for m in methods_ord]
-        prcs = [res[m]["macro_precision"] for m in methods_ord]
-        recs = [res[m]["macro_recall"]    for m in methods_ord]
-        f1s  = [res[m]["macro_f1"]        for m in methods_ord]
-
-        def badge(val, vals):
-            mx,mn=max(vals),min(vals)
-            if val==mx: return f'<span class="bbest">{val}%</span>'
-            if val==mn: return f'<span class="blow">{val}%</span>'
-            return f'<span class="bmid">{val}%</span>'
-
-        # Bar chart
-        bclasses=["b1","b2","b3"]
-        bh='<div style="margin-bottom:18px;">'
-        for mi,(metric,vals) in enumerate([
-            ("Accuracy",accs),("Macro Precision",prcs),
-            ("Macro Recall",recs),("Macro F1-Score",f1s)]):
-            bh+=f'<div style="font-size:11px;font-weight:700;color:#6366f1;letter-spacing:.9px;text-transform:uppercase;margin-bottom:5px;">{metric}</div>'
-            for k,m in enumerate(methods_ord):
-                bh+=(f'<div class="brow">'
-                     f'<div class="blabel">{"🥇🥈🥉"[k]} {m}</div>'
-                     f'<div class="btrack"><div class="bfill {bclasses[k]}" style="width:{vals[k]}%;">'
-                     f'{vals[k]}%</div></div></div>')
-            bh+='<div style="height:8px;"></div>'
-        bh+='</div>'
-        st.markdown(bh, unsafe_allow_html=True)
-
-        # Summary table
-        st.markdown("#### 🏆 Performance Summary")
-        rows=""
-        for k,m in enumerate(methods_ord):
-            rows+=(f'<tr><td><strong>{"🥇🥈🥉"[k]} {m}</strong></td>'
-                   f'<td>{badge(accs[k],accs)}</td><td>{badge(prcs[k],prcs)}</td>'
-                   f'<td>{badge(recs[k],recs)}</td><td>{badge(f1s[k],f1s)}</td></tr>')
-        st.markdown(f"""<table class="mtable">
-          <thead><tr><th>Method</th><th>Accuracy</th><th>Precision</th>
-          <th>Recall</th><th>F1-Score</th></tr></thead>
-          <tbody>{rows}</tbody></table>""", unsafe_allow_html=True)
-        st.caption("🟢 Best &nbsp; 🟡 Mid &nbsp; 🔴 Lowest")
-
-        # Per-class breakdown
-        st.markdown("#### 🔍 Per-Colour Breakdown")
-        t1,t2,t3 = st.tabs(["🔵 CIE-LAB","🟡 HSV Thresholding","🟢 KNN"])
-        for tab,mname in zip([t1,t2,t3],["CIE-LAB Distance","HSV Thresholding","KNN Classifier"]):
-            with tab:
-                pc=res[mname]["per_class"]; rows2=""
-                for col in COLORS:
-                    d=pc.get(col,{})
-                    rows2+=(f'<tr><td>{COLOR_EMOJIS.get(col,"")} {col}</td>'
-                            f'<td>{d.get("Precision",0)}%</td>'
-                            f'<td>{d.get("Recall",0)}%</td>'
-                            f'<td>{d.get("F1",0)}%</td></tr>')
-                st.markdown(f"""<table class="mtable">
-                  <thead><tr><th>Colour</th><th>Precision</th>
-                  <th>Recall</th><th>F1</th></tr></thead>
-                  <tbody>{rows2}</tbody></table>""", unsafe_allow_html=True)
-
-        # Discussion
-        st.divider()
-        st.markdown("#### 💬 Analysis & Discussion")
-        best_m = methods_ord[0]
-        accs_d = {m:accs[k] for k,m in enumerate(methods_ord)}
-        st.markdown(f"""
-| Criterion | 🔵 CIE-LAB | 🟡 HSV | 🟢 KNN |
-|-----------|-----------|--------|--------|
-| **Approach** | Perceptual distance | Rule ranges | Supervised ML |
-| **Training** | ❌ None | ❌ None | ✅ Synthetic |
-| **Lighting robust** | ✅ High | ⚠️ Medium | ✅ High |
-| **Interpretable** | ✅ High | ✅ Very High | ⚠️ Medium |
-| **Speed** | ✅ O(6) | ✅ O(6) | ⚠️ O(n) |
-| **Accuracy** | **{accs_d.get("CIE-LAB Distance","—")}%** | **{accs_d.get("HSV Thresholding","—")}%** | **{accs_d.get("KNN Classifier","—")}%** |
-
-**Best overall: {best_m}.** CIE-LAB's perceptually-uniform weighted distance naturally handles
-brightness variation without training data. HSV Thresholding degrades when ambient light
-shifts hue outside fixed ranges. KNN learns colour distributions but is constrained to its
-synthetic training domain.
-""")
-    else:
-        st.info("👆 Click **▶️ Run Benchmark** to compare all three CV methods with live metrics.")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
