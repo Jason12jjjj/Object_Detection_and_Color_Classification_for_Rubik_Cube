@@ -307,16 +307,17 @@ def run_method_b(raw_bytes, expected_center):
         overlay, stickers = yolo_detect.detect_and_draw(raw_bytes)
         
         if not stickers:
-            # Improvement: Show the overlay even if 0 detected to help user troubleshoot
-            return None, None, overlay, "❌ No stickers detected via YOLO. Please ensure the cube face is well-lit and centered."
+            # Diagnostic: Get ALL raw detections to show what the AI saw
+            diag_bgr, _ = yolo_detect.detect_and_draw(raw_bytes)
+            diag_rgb = cv2.cvtColor(diag_bgr, cv2.COLOR_BGR2RGB)
+            return None, None, diag_rgb, "❌ No stickers detected. AI see 0 objects. Please try a different angle."
 
-        # Note: We no longer filter by "class_name == sticker" to be more robust
-        # We take whatever the model detected as the 9 stickers
         if len(stickers) != 9:
-            return None, None, overlay, f"⚠️ YOLO detected {len(stickers)} features (expected 9). Please adjust position or lighting."
-        # If less than 9, we fall back to OpenCV for the rest (or show warning)
-        if len(stickers) < 9:
-            return None, None, None, f"⚠️ YOLO only detected {len(stickers)}/9 stickers. Try again or use OpenCV."
+            # Diagnostic Overlay
+            diag_bgr, _ = yolo_detect.detect_and_draw(raw_bytes)
+            diag_rgb = cv2.cvtColor(diag_bgr, cv2.COLOR_BGR2RGB)
+            msg = f"⚠️ YOLO detected {len(stickers)} features (expected 9). Labels: {', '.join([s['class_name'] for s in stickers])}"
+            return None, None, diag_rgb, msg
 
         std = get_std_colors()
         det = []
