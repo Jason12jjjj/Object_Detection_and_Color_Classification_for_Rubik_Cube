@@ -347,7 +347,7 @@ def render_live_cube_map(active_face):
     cube = st.session_state.cube_state
     confirmed = st.session_state.confirmed_faces
 
-    def face_html(face_name):
+    def face_html(area_name, face_name):
         is_active = (face_name == active_face)
         is_confirmed = (face_name in confirmed)
         title_color = "#6366f1" if is_active else ("#22c55e" if is_confirmed else "#94a3b8")
@@ -362,27 +362,24 @@ def render_live_cube_map(active_face):
             hex_c = HEX_COLORS.get(color, '#f1f5f9')
             cells += f'<div style="width:22px;height:22px;border-radius:3px;background:{hex_c};"></div>'
         
-        return f'''<div style="display:inline-block;margin:3px;vertical-align:top;">
+        return f'''<div style="grid-area:{area_name}; justify-self:center;">
             <div style="font-size:10px;font-weight:{title_weight};text-align:center;color:{title_color};margin-bottom:4px;letter-spacing:1px;font-family:Outfit,sans-serif;">{status_icon} {face_name}</div>
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:2px;border-radius:8px;overflow:hidden;border:2px solid {border_color};box-shadow:{shadow};padding:2px;">{cells}</div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:2px;border-radius:8px;overflow:hidden;border:2px solid {border_color};box-shadow:{shadow};padding:2px;background:white;">{cells}</div>
         </div>'''
     
     html = f'''
     <html><body style="margin:0;padding:0;background:transparent;font-family:Outfit,sans-serif;">
-    <div style="background:rgba(255,255,255,0.9);border-radius:20px;padding:20px;border:1px solid rgba(0,0,0,0.06);box-shadow:0 8px 24px -8px rgba(0,0,0,0.06);">
-        <div style="font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#64748b;margin-bottom:16px;text-align:center;">🗺️ LIVE CUBE MAP</div>
-        <div style="text-align:center;">
-            <div style="margin-left:78px;margin-bottom:2px;">
-                {face_html('Up')}
-            </div>
-            <div>
-                {face_html('Left')}{face_html('Front')}{face_html('Right')}{face_html('Back')}
-            </div>
-            <div style="margin-left:78px;margin-top:2px;">
-                {face_html('Down')}
-            </div>
+    <div style="background:rgba(255,255,255,0.9);border-radius:20px;padding:20px;border:1px solid rgba(0,0,0,0.06);box-shadow:0 8px 24px -8px rgba(0,0,0,0.06);min-width:320px;">
+        <div style="font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#64748b;margin-bottom:20px;text-align:center;">🗺️ LIVE CUBE MAP</div>
+        <div style="display:grid; grid-template-areas: '. U . .' 'L F R B' '. D . .'; grid-gap:15px; justify-content:center; align-items:center;">
+            {face_html('U', 'Up')}
+            {face_html('L', 'Left')}
+            {face_html('F', 'Front')}
+            {face_html('R', 'Right')}
+            {face_html('B', 'Back')}
+            {face_html('D', 'Down')}
         </div>
-        <div style="text-align:center;margin-top:14px;font-size:10px;color:#94a3b8;letter-spacing:1px;font-family:Outfit,sans-serif;">
+        <div style="text-align:center;margin-top:20px;font-size:10px;color:#94a3b8;letter-spacing:1px;font-family:Outfit,sans-serif;">
             ✅ {len(confirmed)}/6 FACES CONFIRMED
         </div>
     </div>
