@@ -4,7 +4,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 import numpy as np
 import cv2
-from rubiks_core import validate_cube_state, solve_cube, COLORS
+from rubiks_core import solve_cube
 
 # ══════════════════════════════════════════════════════════════════════════════
 # PAGE CONFIG
