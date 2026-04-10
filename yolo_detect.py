@@ -59,8 +59,12 @@ COLOR_CLASSES  = {
     "orange-sticker": "Orange",
     "blue-sticker":   "Blue",
     # Fallbacks for single-class sticker models
+    # Fallbacks for single-class sticker models
     "sticker":        None,   # colour determined post-detection
     "rubik-cube":     None,
+    "0":              None,   # Support for models trained with numeric labels
+    "1":              None,
+    "cell":           None,
 }
 
 # ---------------------------------------------------------------------------
@@ -223,8 +227,15 @@ def detect_stickers(image_input, model_path: str = None):
         x1, y1 = max(0, x1), max(0, y1)
         x2, y2 = min(w_img, x2), min(h_img, y2)
 
+        # Robustness: Filter out detections that are too large (likely the cube itself)
+        if (x2 - x1) > (w_img * 0.8) and (y2 - y1) > (h_img * 0.8):
+            continue
+
         # Map class name to a Rubik's color if possible
         mapped_color = COLOR_CLASSES.get(cname, None)
+
+        # Brain-Agnostic: Even if the class name is not recognized, 
+        # as long as it's not the full cube (filtered above), we treat it as a sticker feature.
 
         stickers.append({
             "bbox":       (x1, y1, x2, y2),
@@ -234,6 +245,11 @@ def detect_stickers(image_input, model_path: str = None):
             "color":      mapped_color,
             "cropped":    img[y1:y2, x1:x2].copy(),
         })
+
+    # Robustness: If more than 9, take the top 9 by confidence
+    if len(stickers) > 9:
+        stickers.sort(key=lambda s: s["confidence"], reverse=True)
+        stickers = stickers[:9]
 
     # Sort by grid position: top → bottom, left → right
     stickers = _sort_as_grid(stickers, expected=9)
