@@ -4,6 +4,8 @@ import streamlit as st
 import streamlit.components.v1 as components
 import numpy as np
 import cv2
+
+# 只載入我們真正需要的核心求解函數
 from rubiks_core import solve_cube
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -26,7 +28,7 @@ html,body,[data-testid="stAppViewContainer"],[data-testid="stMain"]{
 }
 
 [data-testid="stHeader"] { background-color: transparent !important; }
-[data-testid="stMainBlockContainer"]{ padding-top: 50px !important; }
+[data-testid="stMainBlockContainer"]{ padding-top: 50px !important; padding-bottom: 50px !important; }
 
 .app-title { font-size: 2.8rem; font-weight: 800; color: #0f172a; margin-bottom: 0.2rem; line-height: 1.2; }
 .app-subtitle { font-size: 1.1rem; color: #64748b; margin-bottom: 2rem; font-weight: 500; letter-spacing: 0.5px; }
@@ -146,11 +148,10 @@ def _grid_colors_with_pixels(warped, std_colors, classifier_fn):
                 if np.sqrt((sl-tx)**2+(sm-ty)**2) < 30: fx, fy = sl, sm
             roi = warped[max(0,fy-8):min(300,fy+8), max(0,fx-8):min(300,fx+8)]
             
-            # 🛡️ 修復2: OpenCV 極端反光崩潰保護
+            # 防呆：避免極端反光導致影像裁切為空
             if roi.size > 0:
                 rh, rw = roi.shape[:2]; c_ = roi[rh//4:rh-rh//4, rw//4:rw-rw//4]
-                if c_.size > 0:
-                    bgr = np.median(c_, axis=(0,1)).astype(np.uint8)
+                if c_.size > 0: bgr = np.median(c_, axis=(0,1)).astype(np.uint8)
                 else: bgr = np.zeros(3, dtype=np.uint8)
             else: bgr = np.zeros(3, dtype=np.uint8)
             
@@ -188,20 +189,22 @@ def render_live_cube_map(active_face):
         cells = "".join([f'<div style="width:22px;height:22px;border-radius:3px;background:{HEX_COLORS.get(cube[face_name][i], "#f1f5f9")};"></div>' for i in range(9)])
         return f'<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;"><div style="font-size:10px;font-weight:700;text-align:center;color:{t_col};margin-bottom:4px;">{icon} {face_name}</div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:2px;border-radius:8px;border:2px solid {b_col};box-shadow:{shadow};padding:2px;">{cells}</div></div>'
     
-    html = f'''<html><body style="margin:0;padding:0;background:transparent;font-family:Outfit,sans-serif;">
-    <div style="background:rgba(255,255,255,0.9);border-radius:20px;padding:20px;border:1px solid rgba(0,0,0,0.06);box-shadow:0 8px 24px -8px rgba(0,0,0,0.06); overflow-x:auto;">
+    html = f'''<html><body style="margin:0;padding:0;background:transparent;font-family:Outfit,sans-serif; overflow:auto;">
+    <div style="background:rgba(255,255,255,0.9);border-radius:20px;padding:20px;border:1px solid rgba(0,0,0,0.06);box-shadow:0 8px 24px -8px rgba(0,0,0,0.06); min-width:350px;">
         <div style="font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#64748b;margin-bottom:16px;text-align:center;">🗺️ LIVE CUBE MAP</div>
-        <div style="display:grid; grid-template-columns:78px 78px 78px 78px; gap:6px; justify-content:center; width:max-content; margin:0 auto;">
-            <div style="grid-column:2;">{face_html('Up')}</div>
-            <div style="grid-column:1; grid-row:2;">{face_html('Left')}</div>
-            <div style="grid-column:2; grid-row:2;">{face_html('Front')}</div>
-            <div style="grid-column:3; grid-row:2;">{face_html('Right')}</div>
-            <div style="grid-column:4; grid-row:2;">{face_html('Back')}</div>
-            <div style="grid-column:2; grid-row:3;">{face_html('Down')}</div>
+        <div style="width:100%; display:flex; justify-content:center; padding-bottom:10px;">
+            <div style="display:grid; grid-template-columns:78px 78px 78px 78px; gap:6px; width:max-content; margin:0 auto;">
+                <div style="grid-column:2;">{face_html('Up')}</div>
+                <div style="grid-column:1; grid-row:2;">{face_html('Left')}</div>
+                <div style="grid-column:2; grid-row:2;">{face_html('Front')}</div>
+                <div style="grid-column:3; grid-row:2;">{face_html('Right')}</div>
+                <div style="grid-column:4; grid-row:2;">{face_html('Back')}</div>
+                <div style="grid-column:2; grid-row:3;">{face_html('Down')}</div>
+            </div>
         </div>
-        <div style="text-align:center;margin-top:16px;font-size:10px;color:#94a3b8;font-weight:700;">✅ {len(confirmed)}/6 FACES CONFIRMED</div>
+        <div style="text-align:center;margin-top:6px;font-size:10px;color:#94a3b8;font-weight:700;">✅ {len(confirmed)}/6 FACES CONFIRMED</div>
     </div></body></html>'''
-    components.html(html, height=400)
+    components.html(html, height=460)
 
 def render_detection_feedback(scan_result):
     if not scan_result: return
@@ -242,16 +245,29 @@ with st.sidebar:
             for name in HEX_COLORS:
                 cnt = all_s.count(name); ok = (cnt==9)
                 st.markdown(f"<div style='font-size:12px; font-weight:600;'>{COLOR_EMOJIS[name]} {name}: <span style='color:{'#22c55e' if ok else '#ef4444'};'>{cnt}/9</span></div>", unsafe_allow_html=True)
+        
+        st.markdown("<br>", unsafe_allow_html=True)
         if st.button("🗑️ Reset Cube", use_container_width=True):
             st.session_state.cube_state = {f:(['White']*4+[CENTER_COLORS[f]]+['White']*4)for f in FACES}
             st.session_state.confirmed_faces = []; st.session_state.last_solution = None; st.session_state.scan_result = None
-            push_history(); st.rerun()
+            st.session_state.history = [json.dumps({"cube_state": st.session_state.cube_state, "confirmed_faces": st.session_state.confirmed_faces})]
+            st.session_state.history_index = 0
+            st.rerun()
+            
+        # 歷史回溯按鈕
+        if st.session_state.history_index > 0:
+            if st.button("⏪ Undo Last Action", use_container_width=True, type="secondary"):
+                st.session_state.history_index -= 1
+                prev_state = json.loads(st.session_state.history[st.session_state.history_index])
+                st.session_state.cube_state = prev_state["cube_state"]
+                st.session_state.confirmed_faces = prev_state["confirmed_faces"]
+                st.session_state.last_solution = None
+                st.session_state.scan_result = None
+                st.rerun()
 
 # ══════════════════════════════════════════════════════════════════════════════
 # MAIN APP
 # ══════════════════════════════════════════════════════════════════════════════
-
-# 🛡️ 修復3: 全局顯示標題，無論在哪個模式都不會消失
 st.markdown('''
     <div class="app-title">🧊 AI Rubik's Vision Engine</div>
     <div class="app-subtitle">Multi-Algorithm Comparison & Topology Validation System</div>
@@ -329,9 +345,8 @@ if app_mode == "🧩 Scan & Solve":
                     if err:
                         st.error(err)
                     elif det:
-                        det[4] = CENTER_COLORS[curr]
+                        det[4] = CENTER_COLORS[curr] # 強制鎖定中心塊
                         st.session_state.cube_state[curr] = det
-                        # 🛡️ 修復1: 確保每次 AI 改變魔方狀態時，清空舊的解答
                         st.session_state.last_solution = None 
                         mark_confirmed(curr); push_history()
                         st.session_state.scan_result = {
@@ -361,7 +376,7 @@ if app_mode == "🧩 Scan & Solve":
                     unmark_confirmed(curr)
                     st.session_state.cube_state[curr] = ['White']*4+[CENTER_COLORS[curr]]+['White']*4
                     st.session_state.scan_result = None
-                    st.session_state.last_solution = None # 🛡️ 修復1: 清空舊解答
+                    st.session_state.last_solution = None 
                     if scan_key in st.session_state: del st.session_state[scan_key]
                     push_history(); st.rerun()
         else:
@@ -372,14 +387,14 @@ if app_mode == "🧩 Scan & Solve":
         C_SEQ = ['White', 'Red', 'Green', 'Yellow', 'Orange', 'Blue']
         def cycle_stk(face, ix):
             st.session_state.cube_state[face][ix] = C_SEQ[(C_SEQ.index(st.session_state.cube_state[face][ix]) + 1) % len(C_SEQ)]
-            st.session_state.last_solution = None # 🛡️ 修復1: 確保手動改顏色時，清空舊解答
+            st.session_state.last_solution = None 
             mark_confirmed(face); push_history()
 
         for r in range(3):
             cols = st.columns(3)
             for c in range(3):
                 idx = r*3+c; cv = st.session_state.cube_state[curr][idx]
-                if idx==4: cols[c].button(f"🔒{COLOR_EMOJIS[cv]}", disabled=True, use_container_width=True)
+                if idx==4: cols[c].button(f"🔒{COLOR_EMOJIS[cv]}", disabled=True, use_container_width=True) # 中心塊鎖定防呆
                 else: cols[c].button(f"{COLOR_EMOJIS[cv]}", key=f"g_{curr}_{idx}", on_click=cycle_stk, args=(curr, idx), use_container_width=True)
     
     with col_map:
@@ -410,5 +425,47 @@ if app_mode == "🧩 Scan & Solve":
         render_3d_player(st.session_state.last_solution)
         st.markdown('</div>', unsafe_allow_html=True)
 
+# ══════════════════════════════════════════════════════════════════════════════
+# CALIBRATION PAGE (完整版)
+# ══════════════════════════════════════════════════════════════════════════════
 if app_mode == "⚙️ Calibration":
-    st.markdown('<div class="mcard"><h2>⚙️ Environment Calibration</h2><p>Adjust OpenCV HSV/LAB thresholds here. (Module in development)</p></div>', unsafe_allow_html=True)
+    st.markdown('<div class="mcard"><h2>⚙️ Environment Calibration</h2><p>Calibrate the OpenCV engine for your current lighting conditions.</p></div>', unsafe_allow_html=True)
+    
+    cal_l, cal_r = st.columns([1, 1])
+    
+    with cal_l:
+        st.markdown("#### 1. Select Color to Calibrate")
+        target_color = st.selectbox("Target Color:", ["White", "Yellow", "Red", "Orange", "Green", "Blue"])
+        
+        st.markdown("#### 2. Upload Reference Photo")
+        st.info(f"Please upload a photo of the **{target_color}** face under current lighting.")
+        cal_up = st.file_uploader("Upload Image", type=['jpg','png'], key="cal_up")
+        
+    with cal_r:
+        if cal_up:
+            raw_cal = cal_up.getvalue()
+            arr_cal = np.frombuffer(raw_cal, dtype=np.uint8)
+            img_cal = cv2.imdecode(arr_cal, cv2.IMREAD_COLOR)
+            
+            warped_cal = _warp_to_300(img_cal)
+            st.image(cv2.cvtColor(warped_cal, cv2.COLOR_BGR2RGB), caption="Cropped Center View", width=200)
+            
+            h, w = warped_cal.shape[:2]
+            center_patch = warped_cal[h//2-10 : h//2+10, w//2-10 : w//2+10]
+            median_bgr = np.median(center_patch, axis=(0,1)).astype(np.uint8)
+            
+            b, g, r = int(median_bgr[0]), int(median_bgr[1]), int(median_bgr[2])
+            hsv_val = cv2.cvtColor(np.uint8([[[b, g, r]]]), cv2.COLOR_BGR2HSV)[0][0]
+            
+            st.markdown(f"**Detected RGB:** `R:{r} G:{g} B:{b}`")
+            st.markdown(f"**Calculated HSV:** `H:{hsv_val[0]} S:{hsv_val[1]} V:{hsv_val[2]}`")
+            
+            st.markdown(f'<div style="width:100px; height:50px; background-color:rgb({r},{g},{b}); border-radius:8px; border:1px solid #ccc;"></div>', unsafe_allow_html=True)
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.button(f"🎯 Save '{target_color}' Calibration", type="primary"):
+                st.session_state.custom_std_colors[target_color] = [int(hsv_val[0]), int(hsv_val[1]), int(hsv_val[2])]
+                with open(CALIB_FILE, 'w') as f:
+                    json.dump(st.session_state.custom_std_colors, f)
+                st.success(f"Successfully updated standard values for {target_color}!")
+                st.balloons()
