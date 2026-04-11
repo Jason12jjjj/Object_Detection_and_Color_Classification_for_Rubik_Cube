@@ -7,10 +7,10 @@ import cv2
 from rubiks_core import (
     validate_cube_state, solve_cube,
     classify_color_lab, classify_color_hsv, classify_color_knn, classify_color_mlp,
-    classify_color_svm,
     extract_center_bgr, COLORS,
 )
 import yolo_detect
+import svm_detect
 
 # ══════════════════════════════════════════════════════════════════════════════
 # PAGE CONFIG
@@ -382,7 +382,7 @@ def run_method_c(raw_bytes, expected_center):
     arr = np.frombuffer(raw_bytes, dtype=np.uint8); img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
     if img is None: return None, None, None, "❌ Cannot decode image."
     std = get_std_colors(); warped = _warp_to_300(img)
-    det, raw_bgrs = _grid_colors_with_pixels(warped, std, lambda b: classify_color_svm(b), use_blocks=True)
+    det, raw_bgrs = _grid_colors_with_pixels(warped, std, lambda b: svm_detect.classify_color_svm(b), use_blocks=True)
     warped_rgb = cv2.cvtColor(warped, cv2.COLOR_BGR2RGB)
     overlay = _draw_grid_overlay(warped_rgb)
     return det, raw_bgrs, overlay, None
