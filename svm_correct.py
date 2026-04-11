@@ -4,16 +4,16 @@ import time
 import numpy as np
 
 # ==========================================
-# 1. 路径设置 (已优化为本地路径)
+# 1. Path Configuration (Localized)
 # ==========================================
-result_folder = "predictions"   # 这里存放 predict 之后的结果图
-raw_folder = "to_predict"       # 这里存放原始的原图
-dataset_path = "svm_dataset"    # 修正后的数据将存入这里
+result_folder = "predictions"   # Stores results from svm_predict.py
+raw_folder = "to_predict"       # Stores original source images
+dataset_path = "svm_dataset"    # Corrected data will be saved here
 
 # ==========================================
-# 2. 鼠标点击与按钮交互逻辑
+# 2. Mouse & Interaction Logic
 # ==========================================
-# 记录鼠标点击坐标
+# Track mouse click coordinates
 click_pos = [None]
 
 def mouse_callback(event, x, y, flags, param):
@@ -21,7 +21,7 @@ def mouse_callback(event, x, y, flags, param):
         param[0] = (x, y)
 
 def get_action_from_click(x, y):
-    """根据鼠标点击的坐标，判断按下了哪个虚拟按钮"""
+    """Determine which virtual button was clicked."""
     if 610 <= y <= 660:
         if 20 <= x <= 100: return 'red'
         if 115 <= x <= 195: return 'green'
@@ -36,31 +36,31 @@ def get_action_from_click(x, y):
     return None
 
 def draw_control_panel(canvas):
-    """在图片底部绘制控制面板和按钮"""
-    # 底部深灰色背景
+    """Draw UI panel and buttons at the bottom of the window."""
+    # Dark grey background footer
     cv2.rectangle(canvas, (0, 600), (600, 750), (40, 40, 40), -1)
 
-    # --- 第一排：颜色按钮 ---
-    # 红 (BGR)
+    # --- Row 1: Color Selection ---
+    # RED
     cv2.rectangle(canvas, (20, 610), (100, 660), (0, 0, 255), -1)
     cv2.putText(canvas, "RED(r)", (35, 640), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), 1)
-    # 绿
+    # GREEN
     cv2.rectangle(canvas, (115, 610), (195, 660), (0, 200, 0), -1)
     cv2.putText(canvas, "GRN(g)", (125, 640), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), 1)
-    # 蓝
+    # BLUE
     cv2.rectangle(canvas, (210, 610), (290, 660), (255, 0, 0), -1)
     cv2.putText(canvas, "BLU(b)", (225, 640), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), 1)
-    # 黄
+    # YELLOW
     cv2.rectangle(canvas, (305, 610), (385, 660), (0, 255, 255), -1)
     cv2.putText(canvas, "YLW(y)", (320, 640), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,0), 1)
-    # 橙
+    # ORANGE
     cv2.rectangle(canvas, (400, 610), (480, 660), (0, 140, 255), -1)
     cv2.putText(canvas, "ORG(o)", (415, 640), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), 1)
-    # 白
+    # WHITE
     cv2.rectangle(canvas, (495, 610), (575, 660), (255, 255, 255), -1)
     cv2.putText(canvas, "WHT(w)", (510, 640), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,0), 1)
 
-    # --- 第二排：功能按钮 ---
+    # --- Row 2: Navigation ---
     cv2.rectangle(canvas, (20, 680), (195, 730), (100, 100, 100), -1)
     cv2.putText(canvas, "Skip Cell (Space)", (40, 710), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), 1)
 
@@ -71,7 +71,7 @@ def draw_control_panel(canvas):
     cv2.putText(canvas, "Quit (q)", (460, 710), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), 1)
 
 # ==========================================
-# 3. 主程序逻辑
+# 3. Main Application Logic
 # ==========================================
 color_map = {
     ord('r'): 'red', ord('g'): 'green', ord('b'): 'blue',
@@ -80,18 +80,18 @@ color_map = {
 
 def interactive_correct():
     if not os.path.exists(result_folder):
-        print(f"❌ 错误：找不到结果文件夹 {result_folder}")
+        print(f"Error: Could not find results folder '{result_folder}'")
         return
 
     result_files = [f for f in os.listdir(result_folder) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
     if not result_files:
-        print("✅ 结果文件夹中没有找到图片。")
+        print(f"Status: No images found in '{result_folder}'.")
         return
 
-    print("=== 🛠️ 全新图形化纠错器已启动 ===")
-    print("👉 请直接用鼠标在弹出的窗口上点击操作！CMD 现已转为后台日志输出。")
+    print("=== Graphical Data Corrector Started ===")
+    print("👉 Use your Mouse to click buttons or Keyboard shortcuts (r/g/b/etc.)")
 
-    # 初始化 OpenCV 窗口并绑定鼠标事件
+    # Initialize OpenCV window and bind mouse events
     cv2.namedWindow("Interactive Corrector UI")
     cv2.setMouseCallback("Interactive Corrector UI", mouse_callback, click_pos)
 
@@ -100,7 +100,7 @@ def interactive_correct():
         res_img = cv2.imdecode(np.fromfile(res_path, dtype=np.uint8), cv2.IMREAD_COLOR)
         if res_img is None: continue
         
-        # 溯源清洗逻辑（保持上一版的高效逻辑）
+        # Determine base name logic
         if "_result" in res_name:
             base_name = res_name.rsplit("_result", 1)[0]
         else:
@@ -114,7 +114,7 @@ def interactive_correct():
                     break
         
         if raw_path is None or not os.path.exists(raw_path):
-            print(f"⚠️ 跳过 {res_name}: 在 {raw_folder} 中找不到核心名为 '{base_name}' 的原图。")
+            print(f"Warning: Skipping {res_name} (Source image '{base_name}' not found in {raw_folder}).")
             continue
             
         raw_img = cv2.imdecode(np.fromfile(raw_path, dtype=np.uint8), cv2.IMREAD_COLOR)
@@ -127,43 +127,42 @@ def interactive_correct():
         for i in range(3):
             if skip_image: break
             for j in range(3):
-                # 建立 600x750 的画布 (上面600是图片，下面150是UI)
+                # Canvas (600x600 for image, 150 for UI)
                 canvas = np.zeros((750, 600, 3), dtype=np.uint8)
                 
-                # 调整原结果图尺寸为 600x600 并画红框
+                # Resize result to 600x600 and highlight current cell
                 img_600 = cv2.resize(res_img, (600, 600))
                 cv2.rectangle(img_600, (j*200, i*200), ((j+1)*200, (i+1)*200), (0, 0, 255), 6)
                 canvas[:600, :] = img_600
                 
-                # 绘制控制面板
+                # Draw UI labels
                 draw_control_panel(canvas)
                 
                 cv2.imshow("Interactive Corrector UI", canvas)
-                click_pos[0] = None # 清空之前的点击记录
+                click_pos[0] = None # Reset click record
                 
-                # 事件监听循环 (每 10ms 监听一次鼠标或键盘)
+                # Event Listening Loop
                 action = None
                 while True:
                     key = cv2.waitKey(10) & 0xFF
-                    # 优先检测键盘快捷键
+                    # Key checks
                     if key != 255:
                         if key in color_map: action = color_map[key]
                         elif key == ord(' '): action = 'skip'
                         elif key == ord('n'): action = 'next'
                         elif key == ord('q'): action = 'quit'
                     
-                    # 检测鼠标点击
+                    # Mouse checks
                     if click_pos[0] is not None:
                         cx, cy = click_pos[0]
                         action = get_action_from_click(cx, cy)
-                        click_pos[0] = None # 响应后立即清空
+                        click_pos[0] = None
                     
-                    # 如果有合法操作，跳出循环执行动作
                     if action: break
                 
-                # --- 执行 Action 动作 ---
+                # --- Execute Action ---
                 if action in ['red', 'green', 'blue', 'yellow', 'orange', 'white']:
-                    # 截取原图纯色块入库
+                    # Extract pure color patch from original source
                     crop_y, crop_x = int(gh * 0.1), int(gw * 0.1)
                     roi = raw_img[i*gh + crop_y : (i+1)*gh - crop_y, 
                                   j*gw + crop_x : (j+1)*gw - crop_x]
@@ -173,21 +172,21 @@ def interactive_correct():
                     
                     save_name = f"fixed_cell_{i}_{j}_{int(time.time()*1000)}.jpg"
                     cv2.imencode('.jpg', roi)[1].tofile(os.path.join(target_dir, save_name))
-                    print(f"✅ 操作已执行: 坐标 [{i+1},{j+1}] 已存入 [{action}] 数据集")
+                    print(f"Action: Cell [{i+1},{j+1}] saved to '{action}' dataset.")
                     
                 elif action == 'next': 
-                    print("⏭️ 跳过当前图片剩余格子")
+                    print("Status: Skipping remaining cells in this image.")
                     skip_image = True
                     break
                 elif action == 'quit':
-                    print("🚪 退出图形化纠错器...")
+                    print("Status: Exiting...")
                     cv2.destroyAllWindows()
                     return
                 elif action == 'skip':
-                    continue # 不做任何保存，直接下一个格子
+                    continue 
 
     cv2.destroyAllWindows()
-    print("--- 🎉 纠错结束，建议重新运行 svm_train.py 以训练新数据！ ---")
+    print("Done: All corrections finished. Run 'svm_train.py' to update the model.")
 
 if __name__ == "__main__":
     interactive_correct()

@@ -59,21 +59,35 @@ html,body,[data-testid="stAppViewContainer"],[data-testid="stMain"]{
 }
 
 /* ── Tactile Grid Stickers ── */
+}
+/* ── Premium Buttons ── */
 .stButton>button{
     border-radius: 12px!important; 
     font-family: 'Outfit',sans-serif!important;
-    font-weight: 800!important;
+    font-weight: 700!important;
     background: #ffffff!important;
-    border: 1.5px solid #f1f5f9!important;
-    box-shadow: inset 0 -4px 6px rgba(0,0,0,0.03), 0 4px 10px -2px rgba(0,0,0,0.05)!important;
-    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)!important;
+    color: #1e293b!important;
+    border: 1.5px solid #cbd5e1!important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05)!important;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1)!important;
 }
 .stButton>button:hover{
-    transform: translateY(-2px) scale(1.03)!important;
-    box-shadow: 0 12px 20px -5px rgba(0,0,0,0.1)!important;
+    transform: translateY(-1px)!important;
     border-color: #6366f1!important;
+    box-shadow: 0 4px 12px rgba(99,102,241,0.15)!important;
 }
-.stButton>button:active{transform: scale(0.95)!important;}
+
+/* ── Primary Action Emphasis ── */
+[data-testid="stBaseButton-primary"] {
+    background: #4338ca!important; /* Indigo-700 */
+    color: white!important;
+    border: none!important;
+    box-shadow: 0 4px 14px 0 rgba(67, 56, 202, 0.39)!important;
+}
+[data-testid="stBaseButton-primary"]:hover {
+    background: #3730a3!important; /* Indigo-800 */
+    box-shadow: 0 6px 20px rgba(67, 56, 202, 0.23)!important;
+}
 
 /* ── Action Footer ── */
 .action-row{display:flex; gap:12px; margin-top:24px; padding-top:24px; border-top:1px solid rgba(0,0,0,0.03);}
@@ -387,25 +401,26 @@ def render_live_cube_map(active_face):
         title_color = "#6366f1" if is_active else ("#22c55e" if is_confirmed else "#94a3b8")
         title_weight = "800" if is_active else "700"
         border_color = "#6366f1" if is_active else ("#22c55e" if is_confirmed else "transparent")
-        shadow = "0 0 12px rgba(99,102,241,0.3)" if is_active else ("0 0 8px rgba(34,197,94,0.2)" if is_confirmed else "none")
+        shadow = "0 0 10px rgba(99,102,241,0.25)" if is_active else ("0 0 6px rgba(34,197,94,0.15)" if is_confirmed else "none")
         status_icon = "✏️" if is_active else ("✅" if is_confirmed else "⭕")
         
         cells = ""
         for idx in range(9):
             color = cube[face_name][idx]
             hex_c = HEX_COLORS.get(color, '#f1f5f9')
-            cells += f'<div style="width:22px;height:22px;border-radius:3px;background:{hex_c};"></div>'
+            # Reduced cell size to 18px for better zoom compatibility
+            cells += f'<div style="width:18px;height:18px;border-radius:3px;background:{hex_c};"></div>'
         
         return f'''<div style="grid-area:{area_name}; justify-self:center;">
-            <div style="font-size:10px;font-weight:{title_weight};text-align:center;color:{title_color};margin-bottom:4px;letter-spacing:1px;font-family:Outfit,sans-serif;">{status_icon} {face_name}</div>
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:2px;border-radius:8px;overflow:hidden;border:2px solid {border_color};box-shadow:{shadow};padding:2px;background:white;">{cells}</div>
+            <div style="font-size:9px;font-weight:{title_weight};text-align:center;color:{title_color};margin-bottom:3px;letter-spacing:1px;font-family:Outfit,sans-serif;">{status_icon} {face_name}</div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.5px;border-radius:6px;overflow:hidden;border:2px solid {border_color};box-shadow:{shadow};padding:1.5px;background:white;">{cells}</div>
         </div>'''
     
     html = f'''
-    <html><body style="margin:0;padding:2px;background:transparent;font-family:Outfit,sans-serif;box-sizing:border-box;">
-    <div style="background:rgba(255,255,255,0.9);border-radius:20px;padding:15px;border:1px solid rgba(0,0,0,0.06);box-shadow:0 8px 24px -8px rgba(0,0,0,0.06); width:fit-content; margin:0 auto;">
-        <div style="font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#64748b;margin-bottom:15px;text-align:center;">🗺️ LIVE CUBE MAP</div>
-        <div style="display:grid; grid-template-areas: '. U . .' 'L F R B' '. D . .'; grid-gap:8px; justify-content:center; align-items:center;">
+    <html><body style="margin:0;padding:2px;background:transparent;font-family:Outfit,sans-serif;box-sizing:border-box;overflow:hidden;">
+    <div style="background:rgba(255,255,255,0.9);border-radius:18px;padding:12px;border:1px solid rgba(0,0,0,0.06);box-shadow:0 8px 24px -8px rgba(0,0,0,0.06); width:fit-content; margin:0 auto;">
+        <div style="font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#64748b;margin-bottom:12px;text-align:center;">🗺️ LIVE CUBE MAP</div>
+        <div style="display:grid; grid-template-areas: '. U . .' 'L F R B' '. D . .'; grid-gap:6px; justify-content:center; align-items:center;">
             {face_html('U', 'Up')}
             {face_html('L', 'Left')}
             {face_html('F', 'Front')}
@@ -413,13 +428,14 @@ def render_live_cube_map(active_face):
             {face_html('B', 'Back')}
             {face_html('D', 'Down')}
         </div>
-        <div style="text-align:center;margin-top:15px;font-size:10px;color:#94a3b8;letter-spacing:1px;font-family:Outfit,sans-serif;">
+        <div style="text-align:center;margin-top:12px;font-size:9px;color:#94a3b8;letter-spacing:1px;font-family:Outfit,sans-serif;">
             ✅ {len(confirmed)}/6 CONFIRMED
         </div>
     </div>
     </body></html>'''
     
-    components.html(html, height=420)
+    # Height reduced to 350px to fit better even when zoomed
+    components.html(html, height=350)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -665,8 +681,10 @@ if app_mode == "🧩 Scan & Solve":
             cols = st.columns(3)
             for c in range(3):
                 idx = r*3+c; cv = st.session_state.cube_state[curr][idx]
-                if idx==4: cols[c].button(f"🔒{COLOR_EMOJIS[cv]}", disabled=True, use_container_width=True)
-                else: cols[c].button(f"{COLOR_EMOJIS[cv]}", key=f"g_{curr}_{idx}", on_click=cycle_stk, args=(curr, idx), use_container_width=True)
+                # Added explicit labels to prevent color confusion (e.g. Orange vs Yellow)
+                label = f"{COLOR_EMOJIS[cv]} {cv[:3].upper()}"
+                if idx==4: cols[c].button(f"🔒 {cv[:3].upper()}", disabled=True, use_container_width=True)
+                else: cols[c].button(label, key=f"g_{curr}_{idx}", on_click=cycle_stk, args=(curr, idx), use_container_width=True)
     
     with col_map:
         render_live_cube_map(curr)
@@ -708,4 +726,58 @@ if app_mode == "🧩 Scan & Solve":
         st.markdown('</div>', unsafe_allow_html=True)
 
 if app_mode == "⚙️ Calibration":
-    st.markdown('<div class="mcard">Settings & Calibration logic here...</div>', unsafe_allow_html=True)
+    st.markdown('<div class="mcard">', unsafe_allow_html=True)
+    st.markdown("### ⚙️ Color Calibration Studio")
+    st.markdown("If the lighting in your room is unusual, use this tool to 'teach' the AI what each color looks like.")
+    
+    c1, c2 = st.columns([2, 1])
+    
+    with c1:
+        st.markdown("#### 1. Sample Color")
+        calib_color = st.selectbox("Select Color to Calibrate:", COLORS)
+        calib_up = st.file_uploader(f"Upload a photo with {calib_color} center", type=['jpg','png','jpeg'], key="calib_up")
+        
+        if calib_up:
+            raw_b = calib_up.read()
+            st.image(raw_b, caption="Reference Photo", width=300)
+            
+            if st.button(f"🎯 Calibrate {calib_color} Target", type="primary"):
+                bgr = extract_center_bgr(raw_b)
+                if bgr is not None:
+                    # Convert to list for JSON compatibility
+                    st.session_state.custom_std_colors[calib_color] = bgr.tolist()
+                    st.success(f"Successfully calibrated {calib_color} to: BGR {bgr.tolist()}")
+                else:
+                    st.error("Failed to extract color. Ensure image is valid.")
+
+    with c2:
+        st.markdown("#### 2. Settings")
+        if st.button("💾 Save Profile to Disk", use_container_width=True):
+            with open(CALIB_FILE, 'w') as f:
+                json.dump(st.session_state.custom_std_colors, f)
+            st.success("Calibration profile saved!")
+            
+        if st.button("🔄 Reset to Defaults", use_container_width=True):
+            st.session_state.custom_std_colors = {}
+            if os.path.exists(CALIB_FILE): os.remove(CALIB_FILE)
+            st.info("Reset to factory defaults.")
+            st.rerun()
+
+    st.divider()
+    st.markdown("#### 3. Active Calibration Stats")
+    # Show internal BGR targets
+    std = get_std_colors()
+    st_cols = st.columns(3)
+    for i, (name, bgr) in enumerate(std.items()):
+        hex_c = f"#{bgr[2]:02x}{bgr[1]:02x}{bgr[0]:02x}"
+        st_cols[i%3].markdown(f"""
+            <div style='padding:10px; border-radius:10px; background:rgba(255,255,255,0.5); border:1px solid #cbd5e1; margin-bottom:10px;'>
+                <div style='display:flex; align-items:center; gap:8px;'>
+                    <div style='width:20px; height:20px; border-radius:4px; background:{hex_c}; border:1px solid #000;'></div>
+                    <b>{name}</b>
+                </div>
+                <code style='font-size:10px;'>BGR: {list(bgr)}</code>
+            </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown('</div>', unsafe_allow_html=True)
