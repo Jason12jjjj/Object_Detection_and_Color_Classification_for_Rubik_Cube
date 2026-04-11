@@ -587,7 +587,7 @@ if app_mode == "🧩 Scan & Solve":
             st.markdown("##### 🔬 Vision Engine")
             algo_choice = st.selectbox(
                 "Select AI Model:",
-                ["📐 OpenCV (Math Distance)", "🎯 YOLOv8 (Object Detection)", "🧠 SVM (Machine Learning)"],
+                ["📐 OpenCV (Math Distance)", "🎯 YOLOv8 (6-Class AI)", "🧠 SVM (Machine Learning)"],
                 label_visibility="collapsed",
                 key=f"algo_sel_{curr}"
             )

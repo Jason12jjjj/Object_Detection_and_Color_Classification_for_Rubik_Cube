@@ -28,18 +28,20 @@ from pathlib import Path
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Default model path strictly prioritizes best.pt
-MODEL_PATH = os.path.join(BASE_DIR, "best.pt")
+# Default model paths
+MODEL_PATH        = os.path.join(BASE_DIR, "best.pt")
+MODEL_COLORS_PATH = os.path.join(BASE_DIR, "best_colors.pt")
 
-if not os.path.exists(MODEL_PATH):
-    # If best.pt is missing, we try to find any existing .pt model in the directory
-    # (Checking for yolov8n.pt or any custom weight file)
+# If best_colors.pt exists, we use it as it's the high-precision one
+ACTIVE_MODEL_PATH = MODEL_COLORS_PATH if os.path.exists(MODEL_COLORS_PATH) else MODEL_PATH
+
+if not os.path.exists(ACTIVE_MODEL_PATH):
+    # Fallback search if both named variants are missing
     weights = [f for f in os.listdir(BASE_DIR) if f.endswith(".pt")]
     if weights:
-        MODEL_PATH = os.path.join(BASE_DIR, weights[0])
+        ACTIVE_MODEL_PATH = os.path.join(BASE_DIR, weights[0])
     else:
-        # Final fallback to standard training output location
-        MODEL_PATH = os.path.join(DATASET_PATH if 'DATASET_PATH' in locals() else BASE_DIR, "runs", "detect", "train", "weights", "best.pt")
+        ACTIVE_MODEL_PATH = os.path.join(BASE_DIR, "runs", "detect", "train", "weights", "best.pt")
 
 # Detection thresholds
 CONFIDENCE_THRESHOLD = 0.25
@@ -47,24 +49,18 @@ IOU_THRESHOLD        = 0.45
 IMG_SIZE             = 640
 
 # Class names expected from the model
-# Adapt these to match the Roboflow dataset labels
-CLASS_CUBE     = "rubik-cube"       # full cube face class
-CLASS_STICKER  = "sticker"          # individual sticker class
-# If your dataset has colour-specific sticker classes, list them here:
+# Multi-Class Mapping for the new best_colors.pt
 COLOR_CLASSES  = {
+    # 6-class model labels (Roboflow standard)
+    "b": "Blue", "g": "Green", "o": "Orange", "r": "Red", "w": "White", "y": "Yellow",
+    # Compatibility with older or different named sticker classes
     "white-sticker":  "White",
     "red-sticker":    "Red",
     "green-sticker":  "Green",
     "yellow-sticker": "Yellow",
     "orange-sticker": "Orange",
     "blue-sticker":   "Blue",
-    # Fallbacks for single-class sticker models
-    # Fallbacks for single-class sticker models
-    "sticker":        None,   # colour determined post-detection
-    "rubik-cube":     None,
-    "0":              None,   # Support for models trained with numeric labels
-    "1":              None,
-    "cell":           None,
+    "sticker":        None,
 }
 
 # ---------------------------------------------------------------------------
@@ -80,7 +76,7 @@ def _load_model(model_path: str = None):
     if _model is not None:
         return _model
 
-    path = model_path or MODEL_PATH
+    path = model_path or ACTIVE_MODEL_PATH
 
     if not os.path.isfile(path):
         raise FileNotFoundError(
