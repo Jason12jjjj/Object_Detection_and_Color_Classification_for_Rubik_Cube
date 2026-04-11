@@ -329,8 +329,12 @@ def run_method_a(raw_bytes, expected_center):
 def run_method_b(raw_bytes, expected_center):
     """YOLOv8 Detection Method"""
     try:
-        # Get stickers AND annotated overlay
-        overlay, stickers = yolo_detect.detect_and_draw(raw_bytes)
+        # 1. Get stickers using the complete detection method
+        stickers = yolo_detect.detect_stickers(raw_bytes)
+        
+        # 2. Get annotated overlay for visual feedback
+        annotated_bgr, _ = yolo_detect.detect_and_draw(raw_bytes)
+        overlay = cv2.cvtColor(annotated_bgr, cv2.COLOR_BGR2RGB)
         
         if len(stickers) != 9:
             # HYBRID FALLBACK: If stickers are missing but cube is found
@@ -371,8 +375,6 @@ def run_method_b(raw_bytes, expected_center):
                 det.append(classify_color_lab(bgr, std))
         
         # Success with pure YOLO stickers
-        annotated_bgr, _ = yolo_detect.detect_and_draw(raw_bytes)
-        overlay = cv2.cvtColor(annotated_bgr, cv2.COLOR_BGR2RGB)
         return det, raw_bgrs, overlay, None
         
     except Exception as e:
