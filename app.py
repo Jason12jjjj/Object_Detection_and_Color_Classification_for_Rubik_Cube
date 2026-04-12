@@ -578,7 +578,7 @@ with st.sidebar:
     app_mode = st.radio("Mode", ["🧩 Scan & Solve", "⚙️ Calibration"], label_visibility="collapsed")
     st.divider()
     if app_mode == "🧩 Scan & Solve":
-        with st.expander("📊 Sticker Stats"):
+        with st.expander("📊 Sticker Status"):
             all_s = [s for f in FACES for s in st.session_state.cube_state[f]]
             for name in HEX_COLORS:
                 cnt = all_s.count(name); ok = (cnt==9)
@@ -747,7 +747,7 @@ if app_mode == "🧩 Scan & Solve":
     if not is_scanning:
         st.markdown('<div class="action-row">', unsafe_allow_html=True)
         a1, a2, a3 = st.columns(3)
-        if a1.button("🧹 Reset", use_container_width=True):
+        if a1.button("🧹 Reset Face", use_container_width=True):
             st.session_state.cube_state[curr] = ['White']*4+[CENTER_COLORS[curr]]+['White']*4
             unmark_confirmed(curr); st.session_state.scan_result = None
             push_history(); st.rerun()
@@ -755,7 +755,7 @@ if app_mode == "🧩 Scan & Solve":
             sel = st.session_state.selected_color
             st.session_state.cube_state[curr] = [sel]*4+[CENTER_COLORS[curr]]+[sel]*4
             mark_confirmed(curr); push_history(); st.rerun()
-        if a3.button("🚀 Manual Confirm", use_container_width=True, type="primary"):
+        if a3.button("🚀 Confirm Face", use_container_width=True, type="primary"):
             mark_confirmed(curr); rem = [f for f in FACES if not face_complete(f)]
             if rem: st.session_state.active_face = rem[0]
             st.session_state.scan_result = None
@@ -796,7 +796,7 @@ if app_mode == "⚙️ Calibration":
             raw_b = calib_up.read()
             st.image(raw_b, caption="Reference Photo", width=300)
             
-            if st.button(f"🎯 Calibrate {calib_color} Target", type="primary"):
+            if st.button(f"🎯 Calibrate {calib_color}", type="primary"):
                 bgr, annotated = extract_center_bgr(raw_b)
                 if bgr is not None:
                     # Show exactly what the AI saw to the user
