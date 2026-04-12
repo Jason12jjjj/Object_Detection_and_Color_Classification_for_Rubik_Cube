@@ -31,7 +31,28 @@ html,body,[data-testid="stAppViewContainer"],[data-testid="stMain"]{
     background: radial-gradient(circle at 0% 0%, #f8fafc 0%, #e2e8f0 100%)!important;
     color:#1e293b!important;
 }
-[data-testid="stMainBlockContainer"]{padding-top:40px!important;}
+[data-testid="stMainBlockContainer"]{
+    padding-top:40px!important;
+    max-width: 100%!important;
+}
+
+/* ── Responsive: prevent squishing at high zoom ── */
+[data-testid="stMain"] .block-container {
+    min-width: 0!important;
+    padding-left: 1rem!important;
+    padding-right: 1rem!important;
+}
+
+/* Allow horizontal columns to wrap when viewport is narrow (e.g. high zoom) */
+[data-testid="stHorizontalBlock"] {
+    flex-wrap: wrap!important;
+    gap: 0.5rem!important;
+}
+/* Each column should have a minimum width so it doesn't squish below usability */
+[data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
+    min-width: 220px!important;
+    flex: 1 1 auto!important;
+}
 
 /* ── Glassmorphic Cards ── */
 .mcard{
@@ -40,7 +61,7 @@ html,body,[data-testid="stAppViewContainer"],[data-testid="stMain"]{
     -webkit-backdrop-filter: blur(16px);
     border: 1px solid rgba(255, 255, 255, 0.4);
     border-radius: 28px;
-    padding: 32px;
+    padding: clamp(16px, 2vw, 32px);
     margin-bottom: 24px;
     box-shadow: 0 20px 40px -15px rgba(0,0,0,0.05), 0 5px 15px -5px rgba(0,0,0,0.02);
 }
@@ -58,8 +79,6 @@ html,body,[data-testid="stAppViewContainer"],[data-testid="stMain"]{
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1)!important;
 }
 
-/* ── Tactile Grid Stickers ── */
-}
 /* ── Premium Buttons ── */
 .stButton>button{
     border-radius: 12px!important; 
@@ -70,6 +89,8 @@ html,body,[data-testid="stAppViewContainer"],[data-testid="stMain"]{
     border: 1.5px solid #cbd5e1!important;
     box-shadow: 0 2px 4px rgba(0,0,0,0.05)!important;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1)!important;
+    font-size: clamp(0.7rem, 0.9vw, 0.875rem)!important;
+    padding: 0.4rem 0.8rem!important;
 }
 .stButton>button:hover{
     transform: translateY(-1px)!important;
@@ -90,14 +111,15 @@ html,body,[data-testid="stAppViewContainer"],[data-testid="stMain"]{
 }
 
 /* ── Action Footer ── */
-.action-row{display:flex; gap:12px; margin-top:24px; padding-top:24px; border-top:1px solid rgba(0,0,0,0.03);}
+.action-row{display:flex; flex-wrap:wrap; gap:12px; margin-top:24px; padding-top:24px; border-top:1px solid rgba(0,0,0,0.03);}
 
 /* ── Solution & Sidebar ── */
 .sol-box{
     background: rgba(248, 250, 252, 0.8);
-    border-radius: 20px; padding: 24px;
-    font-family: 'Courier New', monospace; font-size: 16px; font-weight: 800;
+    border-radius: 20px; padding: clamp(12px, 1.5vw, 24px);
+    font-family: 'Courier New', monospace; font-size: clamp(12px, 1vw, 16px); font-weight: 800;
     box-shadow: inset 0 2px 8px rgba(0,0,0,0.04);
+    word-break: break-word;
 }
 
 [data-testid="stSidebar"]{
@@ -167,15 +189,22 @@ html,body,[data-testid="stAppViewContainer"],[data-testid="stMain"]{
     border: 1px solid rgba(0,0,0,0.1);
 }
 .app-title {
-    font-size: 2.8rem; font-weight: 800; text-align: center;
+    font-size: clamp(1.6rem, 3vw, 2.8rem); font-weight: 800; text-align: center;
     background: linear-gradient(90deg, #1e293b, #474ef1);
     -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     margin-bottom: 4px;
 }
 .app-subtitle {
-    font-size: 0.9rem; font-weight: 600; text-align: center;
+    font-size: clamp(0.65rem, 0.9vw, 0.9rem); font-weight: 600; text-align: center;
     color: #64748b; letter-spacing: 2px; text-transform: uppercase;
-    margin-bottom: 40px;
+    margin-bottom: clamp(16px, 3vw, 40px);
+}
+
+/* ── Responsive overrides for high browser zoom / narrow viewports ── */
+@media screen and (max-width: 900px) {
+    [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
+        min-width: 100%!important;
+    }
 }
 </style>
 """, unsafe_allow_html=True)
@@ -424,7 +453,7 @@ def render_live_cube_map(active_face):
             color = cube[face_name][idx]
             hex_c = HEX_COLORS.get(color, '#f1f5f9')
             # Reduced cell size to 18px for better zoom compatibility
-            cells += f'<div style="width:18px;height:18px;border-radius:3px;background:{hex_c};"></div>'
+            cells += f'<div style="width:clamp(14px,1.2vw,18px);height:clamp(14px,1.2vw,18px);border-radius:3px;background:{hex_c};"></div>'
         
         return f'''<div style="grid-area:{area_name}; justify-self:center;">
             <div style="font-size:9px;font-weight:{title_weight};text-align:center;color:{title_color};margin-bottom:3px;letter-spacing:1px;font-family:Outfit,sans-serif;">{status_icon} {face_name}</div>
@@ -432,10 +461,10 @@ def render_live_cube_map(active_face):
         </div>'''
     
     html = f'''
-    <html><body style="margin:0;padding:2px;background:transparent;font-family:Outfit,sans-serif;box-sizing:border-box;overflow:hidden;">
-    <div style="background:rgba(255,255,255,0.9);border-radius:18px;padding:12px;border:1px solid rgba(0,0,0,0.06);box-shadow:0 8px 24px -8px rgba(0,0,0,0.06); width:fit-content; margin:0 auto;">
+    <html><body style="margin:0;padding:2px;background:transparent;font-family:Outfit,sans-serif;box-sizing:border-box;overflow:auto;">
+    <div style="background:rgba(255,255,255,0.9);border-radius:18px;padding:12px;border:1px solid rgba(0,0,0,0.06);box-shadow:0 8px 24px -8px rgba(0,0,0,0.06); width:fit-content; margin:0 auto; max-width:100%; box-sizing:border-box;">
         <div style="font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#64748b;margin-bottom:12px;text-align:center;">🗺️ LIVE CUBE MAP</div>
-        <div style="display:grid; grid-template-areas: '. U . .' 'L F R B' '. D . .'; grid-gap:6px; justify-content:center; align-items:center;">
+        <div style="display:grid; grid-template-areas: '. U . .' 'L F R B' '. D . .'; grid-gap:4px; justify-content:center; align-items:center;">
             {face_html('U', 'Up')}
             {face_html('L', 'Left')}
             {face_html('F', 'Front')}
@@ -449,8 +478,7 @@ def render_live_cube_map(active_face):
     </div>
     </body></html>'''
     
-    # Height reduced to 350px to fit better even when zoomed
-    components.html(html, height=350)
+    components.html(html, height=380, scrolling=True)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -770,16 +798,18 @@ if app_mode == "⚙️ Calibration":
                     hsv = cv2.cvtColor(np.uint8([[bgr]]), cv2.COLOR_BGR2HSV)[0][0]
                     # Convert to list for JSON compatibility
                     st.session_state.custom_std_colors[calib_color] = hsv.tolist()
-                    st.success(f"Successfully calibrated {calib_color} to: HSV {hsv.tolist()}")
+                    
+                    # ✨ Auto-Save to Disk!
+                    with open(CALIB_FILE, 'w') as f:
+                        json.dump(st.session_state.custom_std_colors, f)
+                        
+                    st.success(f"Successfully calibrated {calib_color} and auto-saved!")
                 else:
                     st.error("Failed to extract color. Ensure image is valid.")
 
     with c2:
         st.markdown("#### 2. Settings")
-        if st.button("💾 Save Profile to Disk", use_container_width=True):
-            with open(CALIB_FILE, 'w') as f:
-                json.dump(st.session_state.custom_std_colors, f)
-            st.success("Calibration profile saved!")
+        st.info("✨ Auto-Saving is Enabled. Calibrated colors are saved instantly!")
             
         if st.button("🔄 Reset to Defaults", use_container_width=True):
             st.session_state.custom_std_colors = {}
