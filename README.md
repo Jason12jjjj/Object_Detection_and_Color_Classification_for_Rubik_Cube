@@ -1,4 +1,4 @@
-{{{mermaid
+···mermaid
 graph TD
     A[Live Video Stream <br> Raw RGB NumPy Arrays] -->|Input Data| B(Stage 1: YOLOv8 Spatial Filter)
     B --> C[Detect Rubik's Cube & <br> Isolate Region of Interest ROI]
@@ -21,4 +21,4 @@ graph TD
     class A,C,E,F,I,J process;
     class B,D stage;
     class H database;
-}}}
+···
