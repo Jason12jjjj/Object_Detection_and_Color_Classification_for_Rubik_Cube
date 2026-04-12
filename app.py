@@ -89,8 +89,6 @@ html,body,[data-testid="stAppViewContainer"],[data-testid="stMain"]{
     border: 1.5px solid #cbd5e1!important;
     box-shadow: 0 2px 4px rgba(0,0,0,0.05)!important;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1)!important;
-    font-size: clamp(0.7rem, 0.9vw, 0.875rem)!important;
-    padding: 0.4rem 0.8rem!important;
 }
 .stButton>button:hover{
     transform: translateY(-1px)!important;
