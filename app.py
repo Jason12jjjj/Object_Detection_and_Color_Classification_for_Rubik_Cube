@@ -12,21 +12,21 @@ from rubiks_core import (
 import yolo_detect
 import svm_detect
 
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 # PAGE CONFIG
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 st.set_page_config(page_title="Rubik's AI Solver", page_icon="🧊",
                    layout="wide", initial_sidebar_state="expanded")
 
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 # CSS (ADAPTIVE FOR LIGHT/DARK MODE)
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
 
-html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"] {
-    font-family: 'Outfit', sans-serif !important;
+html,body,[data-testid="stAppViewContainer"],[data-testid="stMain"]{
+    font-family:'Outfit',sans-serif!important;
 }
 [data-testid="stMainBlockContainer"]{
     padding-top:40px!important;
@@ -57,7 +57,6 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"] {
     flex: 1 1 0%!important;
 }
 
-/* ── 適應性毛玻璃卡片 ── */
 .mcard{
     background: rgba(128, 128, 128, 0.05);
     backdrop-filter: blur(16px);
@@ -72,10 +71,17 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"] {
     color: #888; margin-bottom: 14px; display: block; opacity: 0.9;
 }
 
+.power-btn{
+    border-radius: 14px!important; font-weight: 700!important; 
+    border: 1px solid rgba(128, 128, 128, 0.2)!important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1)!important;
+}
+
 .stButton>button{
     border-radius: 12px!important; 
     font-family: 'Outfit',sans-serif!important;
     font-weight: 700!important;
+    border: 1.5px solid rgba(128, 128, 128, 0.3)!important;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1)!important;
 }
 .stButton>button:hover{
@@ -103,9 +109,65 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"] {
 }
 
 [data-testid="stSidebar"]{
-    border-right: 1px solid rgba(128,128,128,0.1)!important;
+    border-right: 1px solid rgba(128, 128, 128, 0.1)!important;
 }
 
+.cube-map-container {
+    background: rgba(128, 128, 128, 0.05);
+    backdrop-filter: blur(12px);
+    border-radius: 20px;
+    padding: 20px;
+    border: 1px solid rgba(128, 128, 128, 0.1);
+}
+.cube-map-title {
+    font-size: 11px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase;
+    color: #888; margin-bottom: 16px; text-align: center;
+}
+.face-mini {
+    display: inline-block; margin: 3px; vertical-align: top;
+}
+.face-mini-title {
+    font-size: 10px; font-weight: 700; text-align: center; color: #888;
+    margin-bottom: 4px; letter-spacing: 1px;
+}
+.face-mini-title.active { color: #6366f1; font-weight: 800; }
+.face-mini-title.confirmed { color: #22c55e; }
+.mini-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px;
+    border-radius: 8px; overflow: hidden; border: 2px solid transparent;
+    transition: border-color 0.3s;
+}
+.mini-grid.active-grid { border-color: #6366f1; }
+.mini-grid.confirmed-grid { border-color: #22c55e; }
+.mini-cell {
+    width: 22px; height: 22px; border-radius: 3px;
+    transition: transform 0.2s;
+}
+
+.detection-card {
+    background: rgba(128, 128, 128, 0.05);
+    border-radius: 16px;
+    padding: 16px;
+    border: 1px solid rgba(128, 128, 128, 0.1);
+    margin-top: 12px;
+}
+.det-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px;
+    max-width: 180px; margin: 0 auto;
+}
+.det-cell {
+    width: 52px; height: 52px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 800;
+    border: 2px solid rgba(128, 128, 128, 0.2);
+}
+.pixel-strip {
+    display: flex; gap: 2px; justify-content: center; margin-top: 8px;
+}
+.px-swatch {
+    width: 16px; height: 16px; border-radius: 4px;
+    border: 1px solid rgba(128, 128, 128, 0.2);
+}
 .app-title {
     font-size: clamp(1.6rem, 3vw, 2.8rem); font-weight: 800; text-align: center;
     background: linear-gradient(90deg, #6366f1, #a855f7);
@@ -126,9 +188,9 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"] {
 </style>
 """, unsafe_allow_html=True)
 
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 # CONSTANTS
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 FACES         = ['Up','Left','Front','Right','Back','Down']
 HEX_COLORS    = {'White':'#f1f5f9','Red':'#ef4444','Green':'#22c55e',
                   'Yellow':'#eab308','Orange':'#f97316','Blue':'#3b82f6'}
@@ -139,9 +201,9 @@ TOP_COLORS    = {'Up':'Blue','Left':'White','Front':'White',
                   'Right':'White','Back':'White','Down':'Green'}
 CALIB_FILE    = "calibration_profile.json"
 
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 # SESSION STATE
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 _DEFAULTS = {
     'active_face':    'Front',
     'cube_state':     {f: (['White']*4+[CENTER_COLORS[f]]+['White']*4) for f in FACES},
@@ -181,9 +243,9 @@ def push_history():
     st.session_state.history.append(sj)
     st.session_state.history_index = len(st.session_state.history)-1
 
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 # HELPERS
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 def get_std_colors():
     d = {'White':(0,30,220),'Yellow':(30,160,200),'Orange':(12,200,240),
          'Red':(0,210,180),'Green':(60,180,150),'Blue':(110,180,160)}
@@ -204,9 +266,9 @@ def unmark_confirmed(face):
     cf = st.session_state.confirmed_faces
     if face in cf: cf.remove(face)
 
-# ══════════════════════════════════════════════════════════════════════════════
-# DETECTION LOGIC (FULLY RESTORED)
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
+# DETECTION CORE (RESTORED FULLY)
+# ==============================================================================
 def _warp_to_300(img_bgr):
     h, w = img_bgr.shape[:2]
     gs = int(min(h,w)*0.7); ox, oy = (w-gs)//2, (h-gs)//2
@@ -296,7 +358,7 @@ def run_method_b(raw_bytes, expected_center):
                     for c in range(3):
                         patch = cube_res["cropped"][r*ch:(r+1)*ch, c*cw:(c+1)*cw]
                         raw_bgrs.append(np.median(patch, axis=(0,1)).astype(np.uint8))
-                det[4] = expected_center
+                det[4] = expected_center 
                 overlay = cv2.cvtColor(cube_res["annotated"], cv2.COLOR_BGR2RGB)
                 return det, raw_bgrs, overlay, None
             
@@ -328,9 +390,9 @@ def run_method_c(raw_bytes, expected_center):
     overlay = _draw_grid_overlay(warped_rgb, centers)
     return det, raw_bgrs, overlay, None
 
-# ══════════════════════════════════════════════════════════════════════════════
-# LIVE CUBE MAP (FULLY RESTORED)
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
+# LIVE CUBE MAP (RESTORED FULLY)
+# ==============================================================================
 def render_live_cube_map(active_face):
     cube = st.session_state.cube_state
     confirmed = st.session_state.confirmed_faces
@@ -338,7 +400,7 @@ def render_live_cube_map(active_face):
     def face_html(area_name, face_name):
         is_active = (face_name == active_face)
         is_confirmed = (face_name in confirmed)
-        title_color = "#6366f1" if is_active else ("#22c55e" if is_confirmed else "#94a3b8")
+        title_color = "#6366f1" if is_active else ("#22c55e" if is_confirmed else "#888")
         title_weight = "800" if is_active else "700"
         border_color = "#6366f1" if is_active else ("#22c55e" if is_confirmed else "transparent")
         shadow = "0 0 10px rgba(99,102,241,0.25)" if is_active else ("0 0 6px rgba(34,197,94,0.15)" if is_confirmed else "none")
@@ -352,12 +414,12 @@ def render_live_cube_map(active_face):
         
         return f'''<div style="grid-area:{area_name}; justify-self:center;">
             <div style="font-size:9px;font-weight:{title_weight};text-align:center;color:{title_color};margin-bottom:3px;letter-spacing:1px;font-family:Outfit,sans-serif;">{status_icon} {face_name}</div>
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.5px;border-radius:6px;overflow:hidden;border:2px solid {border_color};box-shadow:{shadow};padding:1.5px;background:rgba(255,255,255,0.8);">{cells}</div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.5px;border-radius:6px;overflow:hidden;border:2px solid {border_color};box-shadow:{shadow};padding:1.5px;background:rgba(128,128,128,0.1);">{cells}</div>
         </div>'''
     
     html = f'''
     <html><body style="margin:0;padding:2px;background:transparent;font-family:Outfit,sans-serif;box-sizing:border-box;overflow:auto;">
-    <div style="background:rgba(128,128,128,0.1);border-radius:18px;padding:12px;border:1px solid rgba(128,128,128,0.2); width:fit-content; margin:0 auto; max-width:100%; box-sizing:border-box;">
+    <div style="background:transparent;border-radius:18px;padding:12px;border:1px solid rgba(128,128,128,0.2); width:fit-content; margin:0 auto; max-width:100%; box-sizing:border-box;">
         <div style="font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#888;margin-bottom:12px;text-align:center;">🗺️ LIVE CUBE MAP</div>
         <div style="display:grid; grid-template-areas: '. U . .' 'L F R B' '. D . .'; grid-gap:4px; justify-content:center; align-items:center;">
             {face_html('U', 'Up')}
@@ -372,14 +434,17 @@ def render_live_cube_map(active_face):
         </div>
     </div>
     </body></html>'''
+    
     components.html(html, height=380, scrolling=True)
 
-# ══════════════════════════════════════════════════════════════════════════════
-# DETECTION FEEDBACK PANEL (FULLY RESTORED)
-# ══════════════════════════════════════════════════════════════════════════════
+
+# ==============================================================================
+# DETECTION FEEDBACK PANEL (RESTORED FULLY)
+# ==============================================================================
 def render_detection_feedback(scan_result):
     if scan_result is None:
         return
+    
     det_colors = scan_result.get('detected', [])
     raw_bgrs = scan_result.get('raw_bgrs', [])
     overlay_img = scan_result.get('overlay', None)
@@ -387,10 +452,12 @@ def render_detection_feedback(scan_result):
     face = scan_result.get('face', 'Front')
     
     st.markdown(f"##### 🔍 Detection Result — {face}")
+    
     if overlay_img is not None:
         st.image(overlay_img, caption=f"📐 How {engine} cropped & analyzed your photo", width=300)
     
     st.markdown("---")
+    
     grid_style = "display:grid;grid-template-columns:repeat(3,1fr);gap:4px;max-width:180px;margin:0 auto;"
     cell_style_base = "width:52px;height:52px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;border:2px solid rgba(128,128,128,0.2);box-shadow:inset 0 -2px 4px rgba(0,0,0,0.1);"
     
@@ -427,9 +494,9 @@ def render_detection_feedback(scan_result):
             summary_parts.append(f"{COLOR_EMOJIS[c]} {c}×{cnt}")
     st.caption("Detected: " + "  ".join(summary_parts))
 
-# ══════════════════════════════════════════════════════════════════════════════
-# 3D PLAYER (FULLY RESTORED)
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
+# 3D PLAYER (RESTORED FULLY)
+# ==============================================================================
 def render_3d_player(solution):
     def inv(s):
         r=[]
@@ -448,12 +515,17 @@ def render_3d_player(solution):
     </div>"""
     components.html(html, height=430)
 
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 # SIDEBAR
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 with st.sidebar:
     st.markdown("<h2 style='margin-top:0;'>🧊 Solver</h2>", unsafe_allow_html=True)
     app_mode = st.radio("Mode", ["🧩 Scan & Solve", "⚙️ Calibration"], label_visibility="collapsed")
+    st.divider()
+    
+    # GLOBAL CAMERA TOGGLE
+    global_use_camera = st.toggle("📷 Global Camera Mode", value=False, key="global_camera_toggle")
+    
     st.divider()
     if app_mode == "🧩 Scan & Solve":
         with st.expander("📊 Sticker Status"):
@@ -467,15 +539,17 @@ with st.sidebar:
             st.session_state.scan_result = None
             push_history(); st.rerun()
 
-# ── MAIN TITLE ──────────────────────────────────────────────────────────────
+# ==============================================================================
+# MAIN TITLE
+# ==============================================================================
 st.markdown('''
     <div class="app-title">🧊 AI Rubik's Vision Engine</div>
     <div class="app-subtitle">Multi-Algorithm Comparison & Topology Validation System</div>
 ''', unsafe_allow_html=True)
 
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 # SCAN & SOLVE PAGE
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 if app_mode == "🧩 Scan & Solve":
     curr = st.session_state.active_face
     pw_cols = st.columns(6)
@@ -500,12 +574,9 @@ if app_mode == "🧩 Scan & Solve":
     with col_l:
         st.markdown("#### 📂 Photo Assist")
         
-        
-        use_camera = st.toggle("📷 Enable Camera Snapshot Mode", key="camera_toggle")
-        
         raw = None
-        if use_camera:
-            cam = st.camera_input("Align the cube and take a snapshot", key=f"cam_{curr}")
+        if global_use_camera:
+            cam = st.camera_input(f"Align the cube and take a snapshot of {curr}", key=f"cam_{curr}")
             if cam:
                 raw = cam.read()
         else:
@@ -590,7 +661,7 @@ if app_mode == "🧩 Scan & Solve":
                     push_history(); st.rerun()
         else:
             tc = TOP_COLORS[curr]; cc = CENTER_COLORS[curr]
-            st.info(f"📷 **{curr} Face**: Center = {COLOR_EMOJIS[cc]} **{cc}** &nbsp;&nbsp;➔&nbsp;&nbsp; Keep {COLOR_EMOJIS[tc]} **{tc}** pointing **UP ⬆️**")
+            st.info(f"📷 {curr} Face: Center = {COLOR_EMOJIS[cc]} {cc} &nbsp;&nbsp;➔&nbsp;&nbsp; Keep {COLOR_EMOJIS[tc]} {tc} pointing UP ⬆️")
     
     with col_r:
         st.markdown('<span class="slabel">✏️ Manual Grid</span>', unsafe_allow_html=True)
@@ -651,9 +722,9 @@ if app_mode == "🧩 Scan & Solve":
         render_3d_player(st.session_state.last_solution)
         st.markdown('</div>', unsafe_allow_html=True)
 
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 # CALIBRATION PAGE
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 if app_mode == "⚙️ Calibration":
     st.markdown('<div class="mcard">', unsafe_allow_html=True)
     st.markdown("### ⚙️ Color Calibration Studio")
@@ -665,15 +736,12 @@ if app_mode == "⚙️ Calibration":
         st.markdown("#### 1. Sample Color")
         calib_color = st.selectbox("Select Color to Calibrate:", COLORS)
         
-        # ─── 📸 Calibration 頁面同樣支援 Camera Toggle ───
-        calib_cam_toggle = st.toggle(f"📷 Enable Camera to capture {calib_color}", key=f"c_mode_{calib_color}")
-        
         raw_b = None
-        if calib_cam_toggle:
-            calib_cam = st.camera_input(f"Snapshot of {calib_color}", key=f"calib_cam_{calib_color}")
+        if global_use_camera:
+            calib_cam = st.camera_input(f"Snapshot of {calib_color} center", key=f"calib_cam_{calib_color}")
             if calib_cam: raw_b = calib_cam.read()
         else:
-            calib_up = st.file_uploader(f"Upload photo of {calib_color}", type=['jpg','png','jpeg'], key=f"calib_up_{calib_color}")
+            calib_up = st.file_uploader(f"Upload a photo with {calib_color} center", type=['jpg','png','jpeg'], key=f"calib_up_{calib_color}")
             if calib_up: raw_b = calib_up.read()
         
         if raw_b:
@@ -713,7 +781,7 @@ if app_mode == "⚙️ Calibration":
         hex_c = f"#{rgb[0]:02x}{rgb[1]:02x}{rgb[2]:02x}"
         
         st_cols[i%3].markdown(f"""
-            <div style='padding:10px; border-radius:10px; background:rgba(128,128,128,0.1); border:1px solid rgba(128,128,128,0.3); margin-bottom:10px;'>
+            <div style='padding:10px; border-radius:10px; background:rgba(128, 128, 128, 0.1); border:1px solid rgba(128, 128, 128, 0.3); margin-bottom:10px;'>
                 <div style='display:flex; align-items:center; gap:8px;'>
                     <div style='width:20px; height:20px; border-radius:4px; background:{hex_c}; border:1px solid #000;'></div>
                     <b>{name}</b>
@@ -723,3 +791,4 @@ if app_mode == "⚙️ Calibration":
         """, unsafe_allow_html=True)
 
     st.markdown('</div>', unsafe_allow_html=True)
+
