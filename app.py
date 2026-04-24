@@ -505,7 +505,6 @@ if app_mode == "🧩 Scan & Solve":
         
         raw = None
         if use_camera:
-            st.info("💡 **Engineering Trade-off**: Static 'Snapshot' mode is utilized instead of continuous live streaming. This prevents motion blur and specular glare from the webcam's auto-exposure, ensuring our 99.99% OpenCV accuracy remains uncompromised.")
             cam = st.camera_input("Align the cube and take a snapshot", key=f"cam_{curr}")
             if cam:
                 raw = cam.read()
